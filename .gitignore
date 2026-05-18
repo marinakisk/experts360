@@ -1,0 +1,6 @@
+.streamlit/secrets.toml
+.streamlit/secrets.toml.save
+gnomon_db.sqlite
+__pycache__/
+.DS_Store
+*.pyc
