@@ -24,29 +24,35 @@ FONTB_PATHS = [
     '/Library/Fonts/Arial Bold.ttf',
 ]
 
-def find_font(paths):
-    for p in paths:
-        if os.path.exists(p):
-            return p
-    return None
-
 _font_reg = False
+
 def register_fonts():
     global _font_reg
     if _font_reg:
         return
-    fp = find_font(FONT_PATHS)
-    fb = find_font(FONTB_PATHS)
-    if fp:
-        pdfmetrics.registerFont(TTFont('GR', fp))
+
+    # Ψάχνει στον ίδιο φάκελο με το pdf_generator.py πρώτα
+    _dir = os.path.dirname(os.path.abspath(__file__))
+    search_paths_reg = [
+        os.path.join(_dir, "DejaVuSans.ttf"),
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+    ]
+    search_paths_bold = [
+        os.path.join(_dir, "DejaVuSans-Bold.ttf"),
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    ]
+
+    found_reg  = next((p for p in search_paths_reg  if os.path.exists(p)), None)
+    found_bold = next((p for p in search_paths_bold if os.path.exists(p)), None)
+
+    if found_reg:
+        pdfmetrics.registerFont(TTFont('GR', found_reg))
+        pdfmetrics.registerFont(TTFont('GR-Bold', found_bold or found_reg))
     else:
-        pdfmetrics.registerFont(TTFont('GR', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
-                                       if os.path.exists('/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf')
-                                       else fp or FONT_PATHS[0]))
-    if fb:
-        pdfmetrics.registerFont(TTFont('GR-Bold', fb))
-    else:
-        pdfmetrics.registerFont(TTFont('GR-Bold', fp or FONT_PATHS[0]))
+        raise Exception("Δεν βρέθηκε γραμματοσειρά. Βάλε DejaVuSans.ttf στον φάκελο της εφαρμογής.")
+
     _font_reg = True
 
 # Χρώματα
@@ -113,29 +119,27 @@ def generate_pdf(data, parts, works, visits, photo_files,
                 textColor=colors.HexColor('#555555'))
 
     # ── HEADER ──────────────────────────────────────────────
-    # Λογότυπα ανάλογα με ασφαλιστική
-    try:
-        import urllib.request
-        if asfalistiki == 'INTERLIFE':
-            gr = urllib.request.urlopen(
-                "https://members.gnomonexperts.gr/images/logo-GNOMON.png", timeout=5)
-            g_img = Image(io.BytesIO(gr.read()), width=4*cm, height=1.5*cm)
-            tr = urllib.request.urlopen(
-                "https://members.gnomonexperts.gr/images/Logo_TUV_hellas_iso9001.jpg", timeout=5)
-            t_img = Image(io.BytesIO(tr.read()), width=1.5*cm, height=1.5*cm)
+    # Λογότυπα ανάλογα με ασφαλιστική - από τοπικά αρχεία
+    _dir = os.path.dirname(os.path.abspath(__file__))
+
+    if asfalistiki == 'INTERLIFE':
+        gnomon_path = os.path.join(_dir, "logo_gnomon.png")
+        tuv_path    = os.path.join(_dir, "logo_tuv.jpg")
+        if os.path.exists(gnomon_path) and os.path.exists(tuv_path):
+            g_img = Image(gnomon_path, width=4*cm, height=1.5*cm)
+            t_img = Image(tuv_path,    width=1.5*cm, height=1.5*cm)
             hdr_data = [[g_img, t_img]]
             hdr_cols = [CW-2*cm, 2*cm]
-        else:
-            if os.path.exists("logo_experts360.png"):
-                logo = Image("logo_experts360.png", width=4*cm, height=1.4*cm)
-            else:
-                logo = P('Experts360', s_title)
-            hdr_data = [[logo, '']]
+        elif os.path.exists(gnomon_path):
+            hdr_data = [[Image(gnomon_path, width=4*cm, height=1.5*cm), '']]
             hdr_cols = [CW-2*cm, 2*cm]
-    except:
-        if os.path.exists("logo_experts360.png"):
-            logo = Image("logo_experts360.png", width=4*cm, height=1.4*cm)
-            hdr_data = [[logo, '']]
+        else:
+            hdr_data = [[P('GNOMON EXPERTS', s_title), P('TUV', s_bc)]]
+            hdr_cols = [CW-2*cm, 2*cm]
+    else:
+        logo_path = os.path.join(_dir, "logo_experts360.png")
+        if os.path.exists(logo_path):
+            hdr_data = [[Image(logo_path, width=4*cm, height=1.4*cm), '']]
         else:
             hdr_data = [[P('Experts360', s_title), '']]
         hdr_cols = [CW-2*cm, 2*cm]
@@ -354,7 +358,20 @@ def generate_pdf(data, parts, works, visits, photo_files,
         for i,pf in enumerate(photo_files):
             try:
                 pf.seek(0)
-                img = Image(io.BytesIO(pf.read()), width=CW, height=img_h)
+                # Συμπίεση εικόνας πριν το PDF
+                from PIL import Image as PILImg
+                raw = pf.read()
+                pil = PILImg.open(io.BytesIO(raw))
+                # Max 1200px πλάτος
+                if pil.width > 1200:
+                    ratio = 1200 / pil.width
+                    pil = pil.resize((1200, int(pil.height * ratio)), PILImg.LANCZOS)
+                if pil.mode in ('RGBA','P'):
+                    pil = pil.convert('RGB')
+                buf = io.BytesIO()
+                pil.save(buf, format='JPEG', quality=60, optimize=True)
+                buf.seek(0)
+                img = Image(buf, width=CW, height=img_h)
                 img.hAlign = 'CENTER'
                 story.append(img)
                 cap = photo_captions[i] if i<len(photo_captions) else ''

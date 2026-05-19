@@ -302,7 +302,91 @@ with _col_logo:
         st.image("logo_experts360.png", width=200)
 with _col_title:
     st.title("Experts360 v2.1")
-    st.caption("Πραγματογνωμοσύνη Οχημάτων & Κτιρίων")
+    st.caption("Πραγματογνωμοσύνη")
+
+# Εικαστικό ανάλογα με κατηγορία
+_kat = st.session_state.get('kategoria', '🚗 Οχήματα')
+if _kat == '🚗 Οχήματα':
+    st.markdown("""<svg width="100%" viewBox="0 0 680 180" role="img" style="margin-bottom:8px;border-radius:12px">
+<title>Εκθέσεις οχημάτων</title>
+<rect x="0" y="0" width="680" height="180" fill="#e8f4fd" rx="12"/>
+<rect x="0" y="135" width="680" height="45" fill="#c8d4dc"/>
+<rect x="0" y="132" width="680" height="6" fill="#90a4ae"/>
+<rect x="60" y="146" width="40" height="4" fill="white" opacity="0.7" rx="2"/>
+<rect x="250" y="146" width="40" height="4" fill="white" opacity="0.7" rx="2"/>
+<rect x="450" y="146" width="40" height="4" fill="white" opacity="0.7" rx="2"/>
+<ellipse cx="80" cy="135" rx="110" ry="35" fill="#a5d6a7"/>
+<ellipse cx="600" cy="137" rx="100" ry="30" fill="#81c784"/>
+<rect x="25" y="100" width="5" height="30" fill="#795548"/>
+<ellipse cx="27" cy="96" rx="14" ry="17" fill="#4caf50"/>
+<rect x="620" y="105" width="5" height="28" fill="#795548"/>
+<ellipse cx="622" cy="101" rx="12" ry="15" fill="#66bb6a"/>
+<rect x="230" y="72" width="220" height="68" rx="10" fill="#1565c0"/>
+<path d="M258 72 Q275 44 315 40 L375 40 Q412 44 422 72Z" fill="#1976d2"/>
+<path d="M268 70 Q280 48 313 45 L368 45 Q398 50 410 70Z" fill="#b3e5fc" opacity="0.9"/>
+<line x1="342" y1="45" x2="342" y2="140" stroke="#1251a3" stroke-width="1.5"/>
+<circle cx="268" cy="138" r="20" fill="#212121"/>
+<circle cx="268" cy="138" r="12" fill="#616161"/>
+<circle cx="268" cy="138" r="5" fill="#9e9e9e"/>
+<circle cx="412" cy="138" r="20" fill="#212121"/>
+<circle cx="412" cy="138" r="12" fill="#616161"/>
+<circle cx="412" cy="138" r="5" fill="#9e9e9e"/>
+<rect x="447" y="87" width="11" height="7" rx="2" fill="#fff9c4"/>
+<rect x="222" y="87" width="11" height="7" rx="2" fill="#ef9a9a"/>
+<circle cx="595" cy="38" r="26" fill="#ffe082" opacity="0.9"/>
+<line x1="595" y1="5" x2="595" y2="0" stroke="#ffca28" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="560" y1="38" x2="554" y2="38" stroke="#ffca28" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="630" y1="38" x2="636" y2="38" stroke="#ffca28" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="572" y1="15" x2="568" y2="10" stroke="#ffca28" stroke-width="2" stroke-linecap="round"/>
+<line x1="618" y1="15" x2="622" y2="10" stroke="#ffca28" stroke-width="2" stroke-linecap="round"/>
+</svg>""", unsafe_allow_html=True)
+else:
+    st.markdown("""<svg width="100%" viewBox="0 0 680 180" role="img" style="margin-bottom:8px;border-radius:12px">
+<title>Εκθέσεις κτιρίων</title>
+<rect x="0" y="0" width="680" height="180" fill="#f1f8e9" rx="12"/>
+<rect x="0" y="140" width="680" height="40" fill="#c8d8c0"/>
+<rect x="0" y="138" width="680" height="5" fill="#a5c49b"/>
+<ellipse cx="80" cy="141" rx="60" ry="10" fill="#81c784" opacity="0.6"/>
+<ellipse cx="600" cy="142" rx="70" ry="11" fill="#81c784" opacity="0.5"/>
+<rect x="265" y="58" width="150" height="85" rx="4" fill="#eceff1" stroke="#b0bec5" stroke-width="1.5"/>
+<line x1="265" y1="83" x2="415" y2="83" stroke="#cfd8dc" stroke-width="1"/>
+<line x1="265" y1="108" x2="415" y2="108" stroke="#cfd8dc" stroke-width="1"/>
+<rect x="278" y="65" width="20" height="14" rx="2" fill="#90caf9" opacity="0.8"/>
+<rect x="308" y="65" width="20" height="14" rx="2" fill="#fff9c4" opacity="0.9"/>
+<rect x="338" y="65" width="20" height="14" rx="2" fill="#90caf9" opacity="0.8"/>
+<rect x="368" y="65" width="20" height="14" rx="2" fill="#fff9c4" opacity="0.9"/>
+<rect x="278" y="89" width="20" height="14" rx="2" fill="#fff9c4" opacity="0.9"/>
+<rect x="308" y="89" width="20" height="14" rx="2" fill="#90caf9" opacity="0.8"/>
+<rect x="338" y="89" width="20" height="14" rx="2" fill="#fff9c4" opacity="0.9"/>
+<rect x="368" y="89" width="20" height="14" rx="2" fill="#90caf9" opacity="0.8"/>
+<rect x="304" y="116" width="72" height="27" rx="3" fill="#8d6e63"/>
+<rect x="314" y="122" width="20" height="14" rx="1" fill="#a1887f" opacity="0.5"/>
+<rect x="340" y="122" width="20" height="14" rx="1" fill="#a1887f" opacity="0.5"/>
+<path d="M258 60 L340 26 L422 60Z" fill="#b0bec5" stroke="#90a4ae" stroke-width="1.5"/>
+<rect x="385" y="32" width="11" height="26" rx="2" fill="#90a4ae"/>
+<rect x="110" y="90" width="75" height="55" rx="3" fill="#f5f5f5" stroke="#cfd8dc" stroke-width="1"/>
+<line x1="110" y1="108" x2="185" y2="108" stroke="#e0e0e0" stroke-width="1"/>
+<rect x="120" y="95" width="14" height="11" rx="2" fill="#90caf9" opacity="0.7"/>
+<rect x="143" y="95" width="14" height="11" rx="2" fill="#fff9c4" opacity="0.8"/>
+<rect x="120" y="113" width="14" height="11" rx="2" fill="#fff9c4" opacity="0.8"/>
+<rect x="143" y="113" width="14" height="11" rx="2" fill="#90caf9" opacity="0.7"/>
+<rect x="130" y="128" width="22" height="18" rx="2" fill="#795548"/>
+<rect x="105" y="84" width="85" height="9" rx="2" fill="#b0bec5"/>
+<rect x="498" y="85" width="90" height="58" rx="3" fill="#f5f5f5" stroke="#cfd8dc" stroke-width="1"/>
+<line x1="498" y1="104" x2="588" y2="104" stroke="#e0e0e0" stroke-width="1"/>
+<line x1="498" y1="123" x2="588" y2="123" stroke="#e0e0e0" stroke-width="1"/>
+<rect x="508" y="90" width="15" height="12" rx="2" fill="#fff9c4" opacity="0.9"/>
+<rect x="532" y="90" width="15" height="12" rx="2" fill="#90caf9" opacity="0.8"/>
+<rect x="558" y="90" width="15" height="12" rx="2" fill="#fff9c4" opacity="0.9"/>
+<rect x="508" y="108" width="15" height="12" rx="2" fill="#90caf9" opacity="0.8"/>
+<rect x="532" y="108" width="15" height="12" rx="2" fill="#fff9c4" opacity="0.9"/>
+<rect x="558" y="108" width="15" height="12" rx="2" fill="#90caf9" opacity="0.8"/>
+<rect x="520" y="128" width="30" height="16" rx="2" fill="#795548"/>
+<rect x="492" y="79" width="102" height="9" rx="2" fill="#b0bec5"/>
+<ellipse cx="160" cy="35" rx="38" ry="16" fill="white" opacity="0.8"/>
+<ellipse cx="188" cy="28" rx="28" ry="18" fill="white" opacity="0.8"/>
+<ellipse cx="205" cy="40" rx="23" ry="13" fill="white" opacity="0.8"/>
+</svg>""", unsafe_allow_html=True)
 
 # Αρχικοποίηση βάσης
 if 'db_ready' not in st.session_state:
@@ -339,6 +423,10 @@ with st.sidebar:
         st.markdown("### Experts360")
     st.markdown("---")
 
+    # Κατηγορία
+    kategoria = st.radio("🗂️ Κατηγορία", ["🚗 Οχήματα", "🏢 Κτίρια"], key="kategoria")
+    st.markdown("---")
+
     PAGES = ["📝 Νέα Έκθεση", "🔍 Αναζήτηση", "📊 Στατιστικά"]
     if 'nav_index' not in st.session_state:
         st.session_state['nav_index'] = 0
@@ -362,6 +450,12 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption("Experts360 v2.1")
+
+# Routing για Κτίρια
+if st.session_state.get('kategoria') == "🏢 Κτίρια":
+    from ktirion_ui import show_ktirion_tab
+    show_ktirion_tab(page)
+    st.stop()
 
 # Αν επιλέξει Αναζήτηση
 if page == "🔍 Αναζήτηση":
@@ -527,9 +621,9 @@ st.subheader("🚗 Στοιχεία Ατυχήματος")
 col1, col2 = st.columns(2)
 with col1:
     ar_zimias        = st.text_input("Αρ. Ζημίας", placeholder="π.χ. 37150/25", key="ar_zimias")
-    hm_atyxhmatos    = st.date_input("Ημ/νία Ατυχήματος", value=None, format="DD/MM/YYYY")
+    hm_atyxhmatos    = st.text_input("Ημ/νία Ατυχήματος", placeholder="ΗΗ/ΜΜ/ΕΕΕΕ", key="hm_atyxhmatos")
 with col2:
-    hm_entolhs       = st.date_input("Ημ/να Εντολής", value=None, format="DD/MM/YYYY")
+    hm_entolhs       = st.text_input("Ημ/να Εντολής", placeholder="ΗΗ/ΜΜ/ΕΕΕΕ", key="hm_entolhs")
     topos_atyxhmatos = st.text_input("Τόπος Ατυχήματος", key="topos_atyxhmatos")
 st.markdown("---")
 
@@ -649,7 +743,7 @@ with col1:
 with col2:
     xrisi   = st.text_input("Χρήση", placeholder="ΕΙΧ", key="xrisi")
     kyvika  = st.text_input("Κυβικά", key="kyvika")
-    hm_kteo = st.date_input("Ημ/νία ΚΤΕΟ", value=None, format="DD/MM/YYYY")
+    hm_kteo = st.text_input("Ημ/νία ΚΤΕΟ", placeholder="ΗΗ/ΜΜ/ΕΕΕΕ", key="hm_kteo")
     axia    = st.number_input("Αξία (€)", min_value=0, step=100, key="axia")
 with col3:
     montela = [""] + get_montela(marka) if marka else [""]
@@ -811,12 +905,12 @@ st.subheader("🔧 Ανταλλακτικά")
 st.caption("Η λέξη 'ΑΝΤΙΚΑΤΑΣΤΑΣΗ' μπαίνει αυτόματα.")
 
 parts = []
-hc = st.columns([3,1.2,1,1,1,1,1])
+hc = st.columns([3,1,1,1,1,1,1])
 for col, lbl in zip(hc, ["**Ανταλλακτικό**","**Τύπος**","**Τιμή**","**Φανοπ.**","**Βαφέας**","**Μηχ/κός**","**Ηλ/γος**"]):
     col.markdown(lbl)
 
 for i in range(st.session_state.num_parts):
-    cols = st.columns([3,1.2,1,1,1,1,1])
+    cols = st.columns([3,1,1,1,1,1,1])
     with cols[0]:
         name = st.text_input("Ανταλλακτικό", key=f"p_name_{i}",
                              label_visibility="collapsed", placeholder="π.χ. ΠΡΟΦΥΛΑΚΤΗΡΑΣ ΠΙΣΩ")
@@ -1037,8 +1131,8 @@ def fill_excel(template_path, _uploaded_files=None, _photo_captions=None):
             ws.add_image(logo)
 
     ws['C5'] = ar_zimias
-    ws['E5'] = fmt_date(hm_entolhs)
-    ws['C6'] = fmt_date(hm_atyxhmatos)
+    ws['E5'] = hm_entolhs or ''
+    ws['C6'] = hm_atyxhmatos or ''
     ws['C7'] = topos_atyxhmatos
     ws['C10'] = idioktitis
     ws['C11'] = ar_kykloforias
@@ -1157,7 +1251,7 @@ def fill_excel(template_path, _uploaded_files=None, _photo_captions=None):
         # Κεντράρουμε βάζοντας offset ~110px από αριστερά (col B)
         LEFT_OFFSET_PX = 105  # pixels από αρχή col B για κεντράρισμα
 
-        for idx, file in enumerate(uploaded_files):
+        for idx, file in enumerate(all_files):
             pos = idx % 2
             photo_row = page_start if pos == 0 else page_start + block
 
@@ -1198,7 +1292,7 @@ def fill_excel(template_path, _uploaded_files=None, _photo_captions=None):
             ws.row_dimensions[cap_row].height = 30
 
             # Page break μετά 2η φωτό
-            if pos == 1 and idx < len(uploaded_files) - 1:
+            if pos == 1 and idx < len(all_files) - 1:
                 ws.row_breaks.append(Break(id=page_start + page_rows - 1))
                 page_start += page_rows
 
