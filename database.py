@@ -16,7 +16,15 @@ SQLITE_PATH = "gnomon_db.sqlite"
 
 # Για PostgreSQL: βάλε το connection string στο .env ή εδώ
 # π.χ. "postgresql://user:pass@db.supabase.co:5432/postgres"
-POSTGRES_URL = os.environ.get("GNOMON_DB_URL", "")
+# Διαβάζει από Streamlit secrets ή environment variable
+def _get_db_url():
+    try:
+        import streamlit as st
+        return st.secrets.get("GNOMON_DB_URL", "") or os.environ.get("GNOMON_DB_URL", "")
+    except:
+        return os.environ.get("GNOMON_DB_URL", "")
+
+POSTGRES_URL = _get_db_url()
 
 
 def get_connection():
