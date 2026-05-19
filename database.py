@@ -29,10 +29,12 @@ POSTGRES_URL = _get_db_url()
 
 def get_connection():
     """Επιστρέφει σύνδεση στη βάση (PostgreSQL αν υπάρχει URL, αλλιώς SQLite)."""
-    if POSTGRES_URL:
+    # Διαβάζουμε κάθε φορά για να πιάνουμε τα Streamlit secrets
+    url = _get_db_url()
+    if url:
         try:
             import psycopg2
-            conn = psycopg2.connect(POSTGRES_URL)
+            conn = psycopg2.connect(url)
             conn.autocommit = False
             return conn, "postgres"
         except Exception as e:
