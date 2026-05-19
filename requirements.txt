@@ -1,0 +1,10 @@
+streamlit
+openpyxl
+Pillow
+beautifulsoup4
+requests
+anthropic
+reportlab
+python-docx
+google-generativeai
+psycopg2-binary
