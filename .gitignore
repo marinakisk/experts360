@@ -4,3 +4,5 @@ gnomon_db.sqlite
 __pycache__/
 .DS_Store
 *.pyc
+.streamlit/secrets.toml
+.streamlit/secrets.toml.save
