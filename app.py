@@ -453,9 +453,14 @@ if 'db_ready' not in st.session_state:
     st.session_state['db_ready'] = ok
     st.session_state['db_type'] = db_type if ok else "error"
 
-db_icon = "🟢" if st.session_state.get('db_type') in ('sqlite','postgres') else "🔴"
-db_label = {"sqlite":"SQLite (τοπικά)", "postgres":"PostgreSQL (cloud)"}.get(
+db_icon = "🟢" if st.session_state.get('db_type') in ('sqlite','postgres','mysql') else "🔴"
+db_label = {"sqlite":"SQLite (τοπικά)", "postgres":"PostgreSQL (cloud)", "mysql":"MySQL (experts360.gr)"}.get(
     st.session_state.get('db_type',''), "Σφάλμα")
+try:
+    _dbg_url = st.secrets.get("GNOMON_DB_URL","")
+    db_label += f" [URL:{'OK' if len(_dbg_url)>10 else 'MISSING'}]"
+except:
+    db_label += " [NO_SECRETS]"
 
 # Debug: εμφάνιση URL status
 try:
