@@ -406,7 +406,8 @@ def generate_pdf(data, parts, works, visits, photo_files,
                 buf = io.BytesIO()
                 pil.save(buf, format='JPEG', quality=60, optimize=True)
                 buf.seek(0)
-                img = Image(buf, width=CW, height=img_h)
+                img_data = buf.read()
+                img = Image(io.BytesIO(img_data), width=CW, height=img_h)
                 img.hAlign = 'CENTER'
                 story.append(img)
                 cap = photo_captions[i] if i<len(photo_captions) else ''
