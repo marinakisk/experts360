@@ -105,7 +105,7 @@ def ph(db_type: str) -> str:
 # ============================================================
 SCHEMA_KTIRION_SQLITE = """
 CREATE TABLE IF NOT EXISTS ektheseis_ktirion (
-    id              INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
     arithmos_zimias TEXT,
     hm_epitheorisis TEXT,
     hm_syntaxis     TEXT,
@@ -134,16 +134,16 @@ CREATE TABLE IF NOT EXISTS ektheseis_ktirion (
 );
 
 CREATE TABLE IF NOT EXISTS grammes_zimias_ktiriou (
-    id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ekthesi_id  INTEGER REFERENCES ektheseis_ktirion(id) ON DELETE CASCADE,
-    desc        TEXT,
+    descr       TEXT,
     apaitisi    REAL DEFAULT 0,
     ektimisi    REAL DEFAULT 0,
     sort_order  INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS history_ktirion (
-    id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ekthesi_id  INTEGER REFERENCES ektheseis_ktirion(id) ON DELETE CASCADE,
     action      TEXT,
     details     TEXT,
@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS ektheseis_ktirion (
 CREATE TABLE IF NOT EXISTS grammes_zimias_ktiriou (
     id          SERIAL PRIMARY KEY,
     ekthesi_id  INTEGER REFERENCES ektheseis_ktirion(id) ON DELETE CASCADE,
-    desc        TEXT,
+    descr       TEXT,
     apaitisi    REAL DEFAULT 0,
     ektimisi    REAL DEFAULT 0,
     sort_order  INTEGER DEFAULT 0
@@ -211,7 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_ktirion_status   ON ektheseis_ktirion(status);
 
 SCHEMA_SQLITE = """
 CREATE TABLE IF NOT EXISTS ektheseis (
-    id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ar_zimias   TEXT,
     hm_entolhs  TEXT,
     hm_atyx     TEXT,
@@ -251,10 +251,10 @@ CREATE TABLE IF NOT EXISTS ektheseis (
 );
 
 CREATE TABLE IF NOT EXISTS grammes_antallaktikon (
-    id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ekthesi_id  INTEGER REFERENCES ektheseis(id) ON DELETE CASCADE,
     name        TEXT,
-    type        TEXT,
+    wtype       TEXT,
     price       REAL DEFAULT 0,
     fanop       REAL DEFAULT 0,
     vafeas      REAL DEFAULT 0,
@@ -264,10 +264,10 @@ CREATE TABLE IF NOT EXISTS grammes_antallaktikon (
 );
 
 CREATE TABLE IF NOT EXISTS grammes_ergasion (
-    id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ekthesi_id  INTEGER REFERENCES ektheseis(id) ON DELETE CASCADE,
-    type        TEXT,
-    desc        TEXT,
+    wtype       TEXT,
+    descr       TEXT,
     fanop       REAL DEFAULT 0,
     vafeas      REAL DEFAULT 0,
     mixanikos   REAL DEFAULT 0,
@@ -276,7 +276,7 @@ CREATE TABLE IF NOT EXISTS grammes_ergasion (
 );
 
 CREATE TABLE IF NOT EXISTS history (
-    id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ekthesi_id  INTEGER REFERENCES ektheseis(id) ON DELETE CASCADE,
     action      TEXT,
     details     TEXT,
@@ -335,7 +335,7 @@ CREATE TABLE IF NOT EXISTS grammes_antallaktikon (
     id          SERIAL PRIMARY KEY,
     ekthesi_id  INTEGER REFERENCES ektheseis(id) ON DELETE CASCADE,
     name        TEXT,
-    type        TEXT,
+    wtype       TEXT,
     price       REAL DEFAULT 0,
     fanop       REAL DEFAULT 0,
     vafeas      REAL DEFAULT 0,
@@ -347,8 +347,8 @@ CREATE TABLE IF NOT EXISTS grammes_antallaktikon (
 CREATE TABLE IF NOT EXISTS grammes_ergasion (
     id          SERIAL PRIMARY KEY,
     ekthesi_id  INTEGER REFERENCES ektheseis(id) ON DELETE CASCADE,
-    type        TEXT,
-    desc        TEXT,
+    wtype       TEXT,
+    descr       TEXT,
     fanop       REAL DEFAULT 0,
     vafeas      REAL DEFAULT 0,
     mixanikos   REAL DEFAULT 0,
@@ -380,9 +380,9 @@ def init_db():
         if db_type == "mysql":
             # MySQL/MariaDB
             mysql_schema = (SCHEMA_POSTGRES + SCHEMA_KTIRION_POSTGRES).replace(
-                "SERIAL PRIMARY KEY", "INT AUTO_INCREMENT PRIMARY KEY"
+                "SERIAL PRIMARY KEY", "INT AUTOINCREMENT PRIMARY KEY"
             ).replace("TEXT[]", "TEXT").replace(
-                "AUTOINCREMENT", "AUTO_INCREMENT"
+                "AUTOINCREMENT", "AUTOINCREMENT"
             )
             for stmt in mysql_schema.split(";"):
                 s = stmt.strip()
@@ -396,7 +396,7 @@ def init_db():
             try:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS custom_vehicles (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        id INT AUTOINCREMENT PRIMARY KEY,
                         marka VARCHAR(100) NOT NULL,
                         montelo VARCHAR(100) NOT NULL DEFAULT '',
                         UNIQUE KEY uq_cv (marka, montelo)
@@ -502,13 +502,13 @@ def save_ekthesi(data: dict, parts: list, works: list,
 
         # Εισαγωγή εργασιών
         for i, work in enumerate(works):
-            if not work.get("type","").strip() and not work.get("desc","").strip():
+            if not work.get("wtype","").strip() and not work.get("descr","").strip():
                 continue
             cur.execute(f"""
                 INSERT INTO grammes_ergasion
                 (ekthesi_id,type,desc,fanop,vafeas,mixanikos,ilgos,sort_order)
                 VALUES ({placeholder(db_type,8)})
-            """, [ekthesi_id, work.get("type",""), work.get("desc",""),
+            """, [ekthesi_id, work.get("wtype",""), work.get("descr",""),
                   work.get("fanop",0), work.get("vafeas",0),
                   work.get("mixanikos",0), work.get("ilgos",0), i])
 
@@ -907,13 +907,13 @@ def save_ekthesi_ktiriou(data: dict, grammes: list,
 
         cur.execute(f"DELETE FROM grammes_zimias_ktiriou WHERE ekthesi_id={p}", [ekthesi_id])
         for i, g in enumerate(grammes):
-            if not g.get("desc", "").strip():
+            if not g.get("descr", "").strip():
                 continue
             cur.execute(f"""
                 INSERT INTO grammes_zimias_ktiriou
                 (ekthesi_id, desc, apaitisi, ektimisi, sort_order)
                 VALUES ({placeholder(db_type, 5)})
-            """, [ekthesi_id, g.get("desc",""), float(g.get("apaitisi",0)),
+            """, [ekthesi_id, g.get("descr",""), float(g.get("apaitisi",0)),
                   float(g.get("ektimisi",0)), i])
 
         details = f"Αρ.Ζημίας: {fields['arithmos_zimias']} | {fields['pathon']} | {fields['topothesia'][:30]}"
