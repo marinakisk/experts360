@@ -970,6 +970,182 @@ else:
     synergeio_eponimia = synergeio_dieuthinsi = synergeio_tilefono = ''
     synergeio_kinito = synergeio_fax = synergeio_mail = ''
 
+# === OCR ΧΕΙΡΟΓΡΑΦΟΥ / ΤΙΜΟΛΟΓΙΟΥ ===
+with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολογίου", expanded=False):
+    ocr_type = st.radio("Τύπος εγγράφου",
+                        ["📋 Χειρόγραφο έντυπο", "🧾 Τιμολόγιο συνεργείου", "📄 Άλλο έγγραφο"],
+                        horizontal=True, key="ocr_doc_type")
+    xeir_files = st.file_uploader("Ανέβασε φωτογραφία/ες εγγράφου",
+                                   type=['jpg','jpeg','png'],
+                                   accept_multiple_files=True,
+                                   key="xeirografo_upload")
+    if xeir_files:
+        cols_prev = st.columns(len(xeir_files))
+        for idx_x, fx in enumerate(xeir_files):
+            with cols_prev[idx_x]:
+                st.image(fx, caption=f"Σελίδα {idx_x+1}", use_container_width=True)
+
+        if st.button("🤖 Ανάγνωση εγγράφου", type="primary", use_container_width=True, key="xeir_ocr_btn"):
+            with st.spinner("Ανάγνωση εγγράφου..."):
+                try:
+                    import anthropic as _ant_xeir, base64 as _b64_xeir, json as _json_xeir, re as _re_xeir
+
+                    _api_key_xeir = ""
+                    try: _api_key_xeir = st.secrets.get("ANTHROPIC_API_KEY","")
+                    except: pass
+
+                    if not _api_key_xeir:
+                        st.error("❌ Δεν βρέθηκε ANTHROPIC_API_KEY")
+                    else:
+                        _client_xeir = _ant_xeir.Anthropic(api_key=_api_key_xeir)
+
+                        # Prompt ανάλογα με τύπο
+                        if "Χειρόγραφο" in ocr_type:
+                            _prompt_xeir = """Αυτό είναι χειρόγραφο έντυπο πραγματογνωμοσύνης οχήματος.
+Έχει 4 μαύρες κουκκίδες στις γωνίες για alignment.
+Διάβασε ΟΛΟΤΕΛΩΣ τα χειρόγραφα πεδία και επέστρεψε ΜΟΝΟ JSON:
+{
+  "ar_zimias": "",
+  "hm_entolhs": "",
+  "hm_atyxhmatos": "",
+  "etaireia": "",
+  "asfalismos": "",
+  "idioktitis": "",
+  "tilefono": "",
+  "ar_kykloforias": "",
+  "marka": "",
+  "montelo": "",
+  "ar_plaisiou": "",
+  "kyvika": "",
+  "xrisi": "",
+  "xroma": "",
+  "kaysimo": "",
+  "proti_adeia": "",
+  "xiliometrites": "",
+  "axia": "",
+  "hm_kteo": "",
+  "katast_oxima": "",
+  "ixni_xromatos": "",
+  "fora_atyxima": "",
+  "synergeio_eponimia": "",
+  "synergeio_dieuthinsi": "",
+  "synergeio_tilefono": "",
+  "synergeio_kinito": "",
+  "synergeio_fax": "",
+  "synergeio_mail": "",
+  "paratiriseis": "",
+  "antallaktika": [
+    {"perigrafi": "", "ant_ko": "", "ex_top": "", "episkevi": "", "vafi": "", "mhx_kos": "", "hlektr": ""}
+  ]
+}
+Αν δεν μπορείς να διαβάσεις κάποιο πεδίο, βάλε "". ΜΟΝΟ JSON."""
+                        elif "Τιμολόγιο" in ocr_type:
+                            _prompt_xeir = """Αυτό είναι τιμολόγιο ή προσφορά συνεργείου.
+Διάβασε τα στοιχεία και επέστρεψε ΜΟΝΟ JSON:
+{
+  "synergeio_eponimia": "",
+  "synergeio_dieuthinsi": "",
+  "synergeio_tilefono": "",
+  "synergeio_afm": "",
+  "hm_timologiou": "",
+  "antallaktika": [
+    {"perigrafi": "", "posotita": "1", "timi_monadas": "", "timi_synolo": ""}
+  ],
+  "ergasies": [
+    {"perigrafi": "", "timi": ""}
+  ],
+  "synolo_xoris_fpa": "",
+  "fpa": "",
+  "synolo_me_fpa": ""
+}
+ΜΟΝΟ JSON."""
+                        else:
+                            _prompt_xeir = """Διάβασε αυτό το έγγραφο και εξάγαγε ΟΛΕΣ τις σχετικές πληροφορίες.
+Επέστρεψε ΜΟΝΟ JSON με όλα τα πεδία που βλέπεις:
+{
+  "pedia": {}
+}
+ΜΟΝΟ JSON."""
+
+                        # Στέλνω όλες τις φωτογραφίες
+                        _msgs_content = []
+                        for fx2 in xeir_files:
+                            fx2.seek(0)
+                            _img_b = fx2.read()
+                            _img_b64 = _b64_xeir.standard_b64encode(_img_b).decode()
+                            from PIL import Image as _PILX
+                            _fmt_x = _PILX.open(__import__('io').BytesIO(_img_b)).format or "JPEG"
+                            _mime_x = "image/jpeg" if _fmt_x.upper() in ("JPEG","JPG") else "image/png"
+                            _msgs_content.append({
+                                "type": "image",
+                                "source": {"type": "base64", "media_type": _mime_x, "data": _img_b64}
+                            })
+                        _msgs_content.append({"type": "text", "text": _prompt_xeir})
+
+                        _resp_xeir = _client_xeir.messages.create(
+                            model="claude-haiku-4-5-20251001",
+                            max_tokens=2000,
+                            messages=[{"role": "user", "content": _msgs_content}]
+                        )
+                        _text_xeir = _resp_xeir.content[0].text.strip()
+                        _text_xeir = _re_xeir.sub(r"```json|```", "", _text_xeir).strip()
+                        _data_xeir = _json_xeir.loads(_text_xeir)
+
+                        # Εφαρμογή δεδομένων στη φόρμα
+                        _applied = []
+                        _field_map = {
+                            'ar_zimias':'ar_zimias', 'hm_entolhs':'hm_entolhs',
+                            'hm_atyxhmatos':'hm_atyxhmatos', 'idioktitis':'idioktitis',
+                            'tilefono':'tilefono', 'ar_kykloforias':'ar_kykloforias',
+                            'marka':'marka', 'montelo':'montelo', 'ar_plaisiou':'ar_plaisiou',
+                            'kyvika':'kyvika', 'xrisi':'xrisi', 'xroma':'xroma',
+                            'kaysimo':'kaysimo', 'proti_adeia':'proti_adeia',
+                            'xiliometritis':'xiliometrites', 'axia':'axia',
+                            'hm_kteo':'hm_kteo', 'katast_oxima':'katast_oxima',
+                            'ixni_xromatos':'ixni_xromatos', 'fora_atyxima':'fora_atyxima',
+                            'paratiriseis':'paratiriseis',
+                            'synergeio_eponimia':'synergeio_eponimia',
+                            'synergeio_dieuthinsi':'synergeio_dieuthinsi',
+                            'synergeio_tilefono':'synergeio_tilefono',
+                            'synergeio_kinito':'synergeio_kinito',
+                            'synergeio_fax':'synergeio_fax',
+                            'synergeio_mail':'synergeio_mail',
+                        }
+                        for src, dst in _field_map.items():
+                            val = _data_xeir.get(src, '')
+                            if val and str(val).strip():
+                                st.session_state[dst] = str(val).strip()
+                                _applied.append(dst)
+
+                        # Ανταλλακτικά από τιμολόγιο ή χειρόγραφο
+                        _ants = _data_xeir.get('antallaktika', [])
+                        if _ants and isinstance(_ants, list):
+                            for idx_a, ant in enumerate(_ants):
+                                if idx_a >= st.session_state.get('num_parts', 7):
+                                    st.session_state['num_parts'] = idx_a + 1
+                                perigrafi = ant.get('perigrafi','') or ant.get('perigrafi','')
+                                timi = ant.get('ant_ko','') or ant.get('timi_synolo','') or ant.get('timi_monadas','')
+                                if perigrafi:
+                                    st.session_state[f'p_name_{idx_a}'] = str(perigrafi)
+                                if timi:
+                                    try: st.session_state[f'p_price_{idx_a}'] = float(str(timi).replace(',','.').replace('€','').strip())
+                                    except: pass
+
+                        if _applied or _ants:
+                            with st.expander("📋 Στοιχεία που αναγνωρίστηκαν", expanded=True):
+                                for k in _applied:
+                                    st.write(f"**{k}:** {st.session_state.get(k,'')}")
+                                if _ants:
+                                    st.write(f"**Ανταλλακτικά/Εργασίες:** {len(_ants)} γραμμές")
+                            st.success("✅ Συμπληρώθηκαν τα πεδία!")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ Δεν βρέθηκαν δεδομένα")
+
+                except Exception as e_xeir:
+                    st.error(f"❌ Σφάλμα: {e_xeir}")
+                    import traceback; st.code(traceback.format_exc())
+
 # === VIN DECODER ===
 _vin_val = ar_plaisiou.strip() if ar_plaisiou else ""
 if len(_vin_val) >= 17:
