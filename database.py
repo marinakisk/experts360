@@ -645,7 +645,8 @@ def get_statistics() -> Dict:
         stats = {}
 
         cur.execute("SELECT COUNT(*) as total FROM ektheseis")
-        stats["total"] = cur.fetchone()[0]
+        _r = cur.fetchone()
+        stats["total"] = _r[0] if isinstance(_r, (list,tuple)) else (_r.get('total',0) if _r else 0)
 
         cur.execute("""
             SELECT COUNT(*) FROM ektheseis
@@ -654,23 +655,25 @@ def get_statistics() -> Dict:
             SELECT COUNT(*) FROM ektheseis
             WHERE created_at >= NOW() - INTERVAL '30 days'
         """)
-        stats["last_30_days"] = cur.fetchone()[0]
+        _r2 = cur.fetchone()
+        stats["last_30_days"] = _r2[0] if isinstance(_r2, (list,tuple)) else (list(_r2.values())[0] if _r2 else 0)
 
-        cur.execute("SELECT COALESCE(SUM(axia),0) FROM ektheseis")
-        stats["total_axia"] = cur.fetchone()[0]
+        cur.execute("SELECT COALESCE(SUM(axia),0) as s FROM ektheseis")
+        _r3 = cur.fetchone()
+        stats["total_axia"] = _r3[0] if isinstance(_r3, (list,tuple)) else (_r3.get('s',0) if _r3 else 0)
 
         cur.execute("""
             SELECT marka, COUNT(*) as cnt
             FROM ektheseis WHERE marka != ''
             GROUP BY marka ORDER BY cnt DESC LIMIT 5
         """)
-        stats["top_markes"] = [dict(r) for r in cur.fetchall()]
+        stats["top_markes"] = [{'marka': r[0] if isinstance(r,(list,tuple)) else r.get('marka',''), 'cnt': r[1] if isinstance(r,(list,tuple)) else r.get('cnt',0)} for r in cur.fetchall()]
 
         cur.execute("""
             SELECT status, COUNT(*) as cnt
             FROM ektheseis GROUP BY status
         """)
-        stats["by_status"] = {r[0]: r[1] for r in cur.fetchall()}
+        stats["by_status"] = {(r[0] if isinstance(r,(list,tuple)) else list(r.values())[0]): (r[1] if isinstance(r,(list,tuple)) else list(r.values())[1]) for r in cur.fetchall()}
 
         cur.execute("""
             SELECT COALESCE(SUM(e.axia),0) as total,
@@ -1262,7 +1265,7 @@ def get_statistics_ktirion() -> dict:
         """)
         stats["by_asfalistiki"] = [dict(r) for r in cur.fetchall()]
         cur.execute("SELECT status, COUNT(*) FROM ektheseis_ktirion GROUP BY status")
-        stats["by_status"] = {r[0]: r[1] for r in cur.fetchall()}
+        stats["by_status"] = {(r[0] if isinstance(r,(list,tuple)) else list(r.values())[0]): (r[1] if isinstance(r,(list,tuple)) else list(r.values())[1]) for r in cur.fetchall()}
         return stats
     except Exception as e:
         print(f"Stats ktirion error: {e}")
