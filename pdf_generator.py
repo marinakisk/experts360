@@ -403,11 +403,10 @@ def generate_pdf(data, parts, works, visits, photo_files,
                     pil = pil.resize((1200, int(pil.height * ratio)), PILImg.LANCZOS)
                 if pil.mode in ('RGBA','P'):
                     pil = pil.convert('RGB')
-                buf = io.BytesIO()
-                pil.save(buf, format='JPEG', quality=60, optimize=True)
-                buf.seek(0)
-                img_data = buf.read()
-                img = Image(io.BytesIO(img_data), width=CW, height=img_h)
+                img_buf = io.BytesIO()
+                pil.save(img_buf, format='JPEG', quality=60, optimize=True)
+                img_buf.seek(0)
+                img = Image(img_buf, width=CW, height=img_h)
                 img.hAlign = 'CENTER'
                 story.append(img)
                 cap = photo_captions[i] if i<len(photo_captions) else ''
@@ -421,5 +420,5 @@ def generate_pdf(data, parts, works, visits, photo_files,
                 story.append(P(f'[Σφάλμα φωτογραφίας]', s_sm))
 
     doc.build(story)
-    buf.seek(0)
-    return buf.read()
+    pdf_output = buf.getvalue()
+    return pdf_output
