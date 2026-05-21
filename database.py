@@ -1130,6 +1130,114 @@ def get_synergeio_full(eponimia: str) -> dict:
     except:
         return {}
 
+def sync_to_cloud(local_db_path: str = "gnomon_db.sqlite") -> tuple:
+    """Συγχρονίζει τοπική SQLite με cloud PostgreSQL."""
+    try:
+        import sqlite3 as _sq3
+        local = _sq3.connect(local_db_path)
+        local.row_factory = _sq3.Row
+        cloud, db_type = get_connection()
+        if db_type == "sqlite":
+            return False, "Δεν υπάρχει cloud σύνδεση"
+
+        p = ph(db_type)
+        synced = 0
+        skipped = 0
+
+        # Εκθέσεις οχημάτων
+        local_cur = local.cursor()
+        local_cur.execute("SELECT * FROM ektheseis ORDER BY id")
+        rows = local_cur.fetchall()
+
+        cloud_cur = cloud.cursor()
+        for row in rows:
+            r = dict(row)
+            # Unique check: ar_zimias + ar_kykl + marka
+            cloud_cur.execute(f"""
+                SELECT id FROM ektheseis
+                WHERE ar_zimias = {p} AND ar_kykl = {p} AND marka = {p}
+            """, (r.get('ar_zimias',''), r.get('ar_kykl',''), r.get('marka','')))
+            exists = cloud_cur.fetchone()
+
+            if exists:
+                skipped += 1
+                continue
+
+            # Insert στο cloud (χωρίς το id)
+            cols = [k for k in r.keys() if k != 'id']
+            vals = [r[c] for c in cols]
+            placeholders = ', '.join([p] * len(cols))
+            col_names = ', '.join(cols)
+            try:
+                cloud_cur.execute(f"""
+                    INSERT INTO ektheseis ({col_names}) VALUES ({placeholders})
+                """, vals)
+                synced += 1
+            except Exception as ie:
+                print(f"Insert error: {ie}")
+                skipped += 1
+
+        cloud.commit()
+        local.close()
+        cloud.close()
+        return True, f"✅ Συγχρονίστηκαν {synced} εκθέσεις, παραλείφθηκαν {skipped}"
+    except Exception as e:
+        return False, str(e)
+
+
+def sync_from_cloud(local_db_path: str = "gnomon_db.sqlite") -> tuple:
+    """Κατεβάζει από cloud στο τοπικό SQLite."""
+    try:
+        import sqlite3 as _sq3
+        local = _sq3.connect(local_db_path)
+        local.row_factory = _sq3.Row
+        cloud, db_type = get_connection()
+        if db_type == "sqlite":
+            return False, "Δεν υπάρχει cloud σύνδεση"
+
+        p = ph(db_type)
+        synced = 0
+        skipped = 0
+
+        cloud_cur = cloud.cursor()
+        cloud_cur.execute("SELECT * FROM ektheseis ORDER BY id")
+        rows = cloud_cur.fetchall()
+
+        local_cur = local.cursor()
+        for row in rows:
+            r = dict(row)
+            # Unique check
+            local_cur.execute("""
+                SELECT id FROM ektheseis
+                WHERE ar_zimias = ? AND ar_kykl = ? AND marka = ?
+            """, (r.get('ar_zimias',''), r.get('ar_kykl',''), r.get('marka','')))
+            exists = local_cur.fetchone()
+
+            if exists:
+                skipped += 1
+                continue
+
+            cols = [k for k in r.keys() if k != 'id']
+            vals = [r[c] for c in cols]
+            placeholders = ', '.join(['?'] * len(cols))
+            col_names = ', '.join(cols)
+            try:
+                local_cur.execute(f"""
+                    INSERT INTO ektheseis ({col_names}) VALUES ({placeholders})
+                """, vals)
+                synced += 1
+            except Exception as ie:
+                print(f"Local insert error: {ie}")
+                skipped += 1
+
+        local.commit()
+        local.close()
+        cloud.close()
+        return True, f"✅ Κατέβηκαν {synced} εκθέσεις, παραλείφθηκαν {skipped}"
+    except Exception as e:
+        return False, str(e)
+
+
 def get_statistics_ktirion() -> dict:
     conn, db_type = get_connection()
     try:

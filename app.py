@@ -21,7 +21,8 @@ from database import (init_db, save_ekthesi, load_ekthesi, search_ektheseis,
                       get_axia_stats, get_antallaktiko_stats_all_types,
     get_synergeio_eponimies, get_synergeio_full,
     get_custom_markes, get_custom_montela, add_custom_marka,
-    add_custom_montelo, delete_custom_vehicle)
+    add_custom_montelo, delete_custom_vehicle,
+    sync_to_cloud, sync_from_cloud)
 
 TEMPLATE_FILE = "ekthesi_clean.xlsx"
 
@@ -532,7 +533,7 @@ if st.session_state.get('kategoria') == "🏢 Κτίρια":
 if page == "⚙️ Ρυθμίσεις":
     st.subheader("⚙️ Ρυθμίσεις — Μάρκες & Μοντέλα")
 
-    tab1, tab2 = st.tabs(["➕ Προσθήκη", "🗑️ Διαγραφή"])
+    tab1, tab2, tab3 = st.tabs(["➕ Προσθήκη", "🗑️ Διαγραφή", "🔄 Συγχρονισμός"])
 
     with tab1:
         st.markdown("#### Προσθήκη Νέας Μάρκας")
@@ -588,6 +589,32 @@ if page == "⚙️ Ρυθμίσεις":
                             if mc2.button("🗑️", key=f"del_mo_{cm}_{mo}"):
                                 delete_custom_vehicle(cm, mo)
                                 st.rerun()
+    with tab3:
+        st.markdown("#### 🔄 Συγχρονισμός Τοπικής ↔ Cloud")
+        _db_type = st.session_state.get('db_type','sqlite')
+        if _db_type == 'sqlite':
+            st.warning("⚠️ Δεν υπάρχει σύνδεση cloud. Πρόσθεσε GNOMON_DB_URL στο secrets.toml")
+        else:
+            st.success(f"✅ Cloud: {_db_type}")
+            st.markdown("---")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**📤 Τοπικό → Cloud**")
+                st.caption("Ανεβάζει τοπικές εκθέσεις στο Supabase")
+                if st.button("📤 Ανέβασμα στο cloud", use_container_width=True):
+                    with st.spinner("Συγχρονισμός..."):
+                        ok, msg = sync_to_cloud()
+                    if ok: st.success(msg)
+                    else: st.error(f"❌ {msg}")
+            with c2:
+                st.markdown("**📥 Cloud → Τοπικό**")
+                st.caption("Κατεβάζει cloud εκθέσεις τοπικά")
+                if st.button("📥 Κατέβασμα από cloud", use_container_width=True):
+                    with st.spinner("Συγχρονισμός..."):
+                        ok, msg = sync_from_cloud()
+                    if ok: st.success(msg)
+                    else: st.error(f"❌ {msg}")
+
     st.stop()
 
 # Αν επιλέξει Αναζήτηση
