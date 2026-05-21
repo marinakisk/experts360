@@ -4,7 +4,15 @@ gdrive.py - Αποθήκευση αρχείων εκθέσεων στο Google D
 import os
 import io
 
-SERVICE_ACCOUNT_FILE = "experts360-497013-9040a7c4fd8d.json"
+import os as _os
+# Ψάχνει το key σε πολλά μέρη
+_KEY_PATHS = [
+    _os.path.expanduser("~/Documents/experts360_credentials/service_account.json"),
+    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "service_account.json"),
+    "/etc/experts360/service_account.json",
+]
+SERVICE_ACCOUNT_FILE = next((p for p in _KEY_PATHS if _os.path.exists(p)), None)
+print(f"Service account file: {SERVICE_ACCOUNT_FILE}")
 ROOT_FOLDER_ID = "1EWHhMHCmKPU2mHBJUBLBd_GuniExpSRh"
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
