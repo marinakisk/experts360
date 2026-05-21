@@ -30,6 +30,13 @@ def register_fonts():
     global _font_reg
     if _font_reg:
         return
+    # Έλεγχος αν είναι ήδη registered
+    try:
+        pdfmetrics.getFont('GR')
+        _font_reg = True
+        return
+    except:
+        pass
 
     # Ψάχνει στον ίδιο φάκελο με το pdf_generator.py πρώτα
     _dir = os.path.dirname(os.path.abspath(__file__))
