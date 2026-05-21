@@ -486,7 +486,7 @@ def save_ekthesi(data: dict, parts: list, works: list,
                 continue
             cur.execute(f"""
                 INSERT INTO grammes_antallaktikon
-                (ekthesi_id,name,type,price,fanop,vafeas,mixanikos,ilgos,sort_order)
+                (ekthesi_id,name,wtype,price,fanop,vafeas,mixanikos,ilgos,sort_order)
                 VALUES ({placeholder(db_type,9)})
             """, [ekthesi_id, part.get("name",""), part.get("type",""),
                   part.get("price",0), part.get("fanop",0), part.get("vafeas",0),
