@@ -355,13 +355,6 @@ if not st.session_state.get('logged_in', False):
     show_login()
     st.stop()
 import os as _os
-_col_logo, _col_title = st.columns([1, 5])
-with _col_logo:
-    if _os.path.exists("logo_experts360.png"):
-        st.image("logo_experts360.png", width=200)
-with _col_title:
-    st.title("Experts360 v2.1")
-    st.caption("Πραγματογνωμοσύνη")
 
 # Εικαστικό ανάλογα με κατηγορία
 _kat = st.session_state.get('kategoria', '🚗 Οχήματα')
@@ -452,16 +445,12 @@ if 'db_ready' not in st.session_state:
     ok, db_type = init_db()
     st.session_state['db_ready'] = ok
     st.session_state['db_type'] = db_type if ok else "error"
-    st.session_state['db_error'] = str(db_type) if not ok else ""
+
 
 db_icon = "🟢" if st.session_state.get('db_type') in ('sqlite','postgres','mysql') else "🔴"
 db_label = {"sqlite":"SQLite (τοπικά)", "postgres":"PostgreSQL (cloud)", "mysql":"MySQL (experts360.gr)"}.get(
     st.session_state.get('db_type',''), "Σφάλμα")
-try:
-    _dbg_url = st.secrets.get("GNOMON_DB_URL","")
-    db_label += f" [URL:{'OK' if len(_dbg_url)>10 else 'MISSING'}]"
-except:
-    db_label += " [NO_SECRETS]"
+
 
 # Debug: εμφάνιση URL status
 try:
@@ -473,8 +462,7 @@ except:
     _url = ""
 
 st.caption(f"{db_icon} Βάση: {db_label}")
-if st.session_state.get('db_error'):
-    st.error(f"DB Error: {st.session_state['db_error'][:200]}")
+
 st.markdown("---")
 
 # ============================================================
