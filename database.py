@@ -24,12 +24,47 @@ def _get_db_url():
     except:
         return os.environ.get("GNOMON_DB_URL", "")
 
+def _get_mysql_config():
+    """Διαβάζει MySQL config από secrets."""
+    try:
+        import streamlit as st
+        host = st.secrets.get("MYSQL_HOST", "") or os.environ.get("MYSQL_HOST", "")
+        user = st.secrets.get("MYSQL_USER", "") or os.environ.get("MYSQL_USER", "")
+        password = st.secrets.get("MYSQL_PASSWORD", "") or os.environ.get("MYSQL_PASSWORD", "")
+        database = st.secrets.get("MYSQL_DB", "") or os.environ.get("MYSQL_DB", "")
+        return host, user, password, database
+    except:
+        host = os.environ.get("MYSQL_HOST", "")
+        user = os.environ.get("MYSQL_USER", "")
+        password = os.environ.get("MYSQL_PASSWORD", "")
+        database = os.environ.get("MYSQL_DB", "")
+        return host, user, password, database
+
 POSTGRES_URL = _get_db_url()
 
 
 def get_connection():
-    """Επιστρέφει σύνδεση στη βάση (PostgreSQL αν υπάρχει URL, αλλιώς SQLite)."""
-    # Διαβάζουμε κάθε φορά για να πιάνουμε τα Streamlit secrets
+    """Επιστρέφει σύνδεση στη βάση (MySQL → PostgreSQL → SQLite)."""
+    # MySQL πρώτα
+    host, user, password, database = _get_mysql_config()
+    if host and user and database:
+        try:
+            import pymysql
+            conn = pymysql.connect(
+                host=host.split(':')[0],
+                port=int(host.split(':')[1]) if ':' in host else 3306,
+                user=user,
+                password=password,
+                database=database,
+                charset='utf8mb4',
+                autocommit=False,
+                cursorclass=pymysql.cursors.DictCursor
+            )
+            return conn, "mysql"
+        except Exception as e:
+            print(f"MySQL failed: {e}, trying PostgreSQL...")
+
+    # PostgreSQL fallback
     url = _get_db_url()
     if url:
         try:
@@ -39,6 +74,8 @@ def get_connection():
             return conn, "postgres"
         except Exception as e:
             print(f"PostgreSQL failed: {e}, falling back to SQLite")
+
+    # SQLite fallback
     conn = sqlite3.connect(SQLITE_PATH)
     conn.row_factory = sqlite3.Row
     return conn, "sqlite"
@@ -178,10 +215,24 @@ CREATE TABLE IF NOT EXISTS ektheseis (
     montelo     TEXT,
     kyvika      TEXT,
     xrisi       TEXT,
+    xroma       TEXT,
+    kaysimo     TEXT,
     proti_adeia TEXT,
     xiliom      TEXT,
     axia        INTEGER,
     hm_kteo     TEXT,
+    katast_oxima TEXT,
+    ixni_xromatos TEXT,
+    fora_atyxima TEXT,
+    elastikon_simeio TEXT,
+    tilefono    TEXT,
+    kindynos    TEXT,
+    synergeio_eponimia TEXT,
+    synergeio_dieuthinsi TEXT,
+    synergeio_tilefono TEXT,
+    synergeio_kinito TEXT,
+    synergeio_fax TEXT,
+    synergeio_mail TEXT,
     visit_date  TEXT,
     visit_place TEXT,
     paratiriseis TEXT,
@@ -245,10 +296,24 @@ CREATE TABLE IF NOT EXISTS ektheseis (
     montelo     TEXT,
     kyvika      TEXT,
     xrisi       TEXT,
+    xroma       TEXT,
+    kaysimo     TEXT,
     proti_adeia TEXT,
     xiliom      TEXT,
     axia        INTEGER,
     hm_kteo     TEXT,
+    katast_oxima TEXT,
+    ixni_xromatos TEXT,
+    fora_atyxima TEXT,
+    elastikon_simeio TEXT,
+    tilefono    TEXT,
+    kindynos    TEXT,
+    synergeio_eponimia TEXT,
+    synergeio_dieuthinsi TEXT,
+    synergeio_tilefono TEXT,
+    synergeio_kinito TEXT,
+    synergeio_fax TEXT,
+    synergeio_mail TEXT,
     visit_date  TEXT,
     visit_place TEXT,
     paratiriseis TEXT,
@@ -304,13 +369,48 @@ def init_db():
     conn, db_type = get_connection()
     try:
         cur = conn.cursor()
-        if db_type == "postgres":
+        if db_type == "mysql":
+            # MySQL/MariaDB
+            mysql_schema = (SCHEMA_POSTGRES + SCHEMA_KTIRION_POSTGRES).replace(
+                "SERIAL PRIMARY KEY", "INT AUTOINCREMENT PRIMARY KEY"
+            ).replace("TEXT[]", "TEXT").replace(
+                "AUTOINCREMENT", "AUTOINCREMENT"
+            )
+            for stmt in mysql_schema.split(";"):
+                s = stmt.strip()
+                if s:
+                    try:
+                        cur.execute(s)
+                    except Exception as se:
+                        if "already exists" not in str(se).lower():
+                            print(f"MySQL schema warning: {se}")
+            # Custom vehicles table
+            try:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS custom_vehicles (
+                        id INT AUTOINCREMENT PRIMARY KEY,
+                        marka VARCHAR(100) NOT NULL,
+                        montelo VARCHAR(100) NOT NULL DEFAULT '',
+                        UNIQUE KEY uq_cv (marka, montelo)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """)
+            except: pass
+        elif db_type == "postgres":
             for stmt in (SCHEMA_POSTGRES + SCHEMA_KTIRION_POSTGRES).split(";"):
                 s = stmt.strip()
                 if s:
                     cur.execute(s)
         else:
-            conn.executescript(SCHEMA_SQLITE + SCHEMA_KTIRION_SQLITE)
+            # SQLite - χρησιμοποιεί AUTOINCREMENT
+            sqlite_schema = SCHEMA_SQLITE + SCHEMA_KTIRION_SQLITE + """
+CREATE TABLE IF NOT EXISTS custom_vehicles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    marka TEXT NOT NULL,
+    montelo TEXT NOT NULL DEFAULT '',
+    UNIQUE(marka, montelo)
+);
+"""
+            conn.executescript(sqlite_schema)
         conn.commit()
         return True, db_type
     except Exception as e:
@@ -431,7 +531,7 @@ def search_ektheseis(query: str = "", status: str = "",
     """Αναζήτηση εκθέσεων με φίλτρα."""
     conn, db_type = get_connection()
     p = ph(db_type)
-    like = "ILIKE" if db_type == "postgres" else "LIKE"
+    like = "LIKE"
     try:
         conditions, params = [], []
 
@@ -895,6 +995,140 @@ def delete_ekthesi_ktiriou(ekthesi_id: int) -> tuple:
     finally:
         conn.close()
 
+
+def get_custom_markes() -> list:
+    """Επιστρέφει custom μάρκες από βάση."""
+    try:
+        conn, _ = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT marka FROM custom_vehicles ORDER BY marka")
+        rows = cur.fetchall()
+        conn.close()
+        return [r[0] for r in rows if r[0]]
+    except:
+        return []
+
+def get_custom_montela(marka: str) -> list:
+    """Επιστρέφει custom μοντέλα για μάρκα από βάση."""
+    try:
+        conn, db_type = get_connection()
+        p = ph(db_type)
+        cur = conn.cursor()
+        cur.execute(f"SELECT montelo FROM custom_vehicles WHERE marka = {p} AND montelo != '' ORDER BY montelo", (marka,))
+        rows = cur.fetchall()
+        conn.close()
+        return [r[0] for r in rows if r[0]]
+    except:
+        return []
+
+def add_custom_marka(marka: str, montela: list = None) -> tuple:
+    """Προσθήκη custom μάρκας (και μοντέλων)."""
+    try:
+        conn, db_type = get_connection()
+        p = ph(db_type)
+        cur = conn.cursor()
+        # Προσθήκη μάρκας χωρίς μοντέλο
+        try:
+            cur.execute(f"INSERT OR IGNORE INTO custom_vehicles (marka, montelo) VALUES ({p},{p})", (marka, ''))
+        except:
+            pass
+        # Προσθήκη μοντέλων
+        if montela:
+            for m in montela:
+                if m.strip():
+                    try:
+                        cur.execute(f"INSERT OR IGNORE INTO custom_vehicles (marka, montelo) VALUES ({p},{p})", (marka, m.strip()))
+                    except:
+                        pass
+        conn.commit()
+        conn.close()
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+def add_custom_montelo(marka: str, montelo: str) -> tuple:
+    """Προσθήκη custom μοντέλου."""
+    try:
+        conn, db_type = get_connection()
+        p = ph(db_type)
+        cur = conn.cursor()
+        cur.execute(f"INSERT OR IGNORE INTO custom_vehicles (marka, montelo) VALUES ({p},{p})", (marka, montelo))
+        conn.commit()
+        conn.close()
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+def delete_custom_vehicle(marka: str, montelo: str = None) -> tuple:
+    """Διαγραφή custom μάρκας ή μοντέλου."""
+    try:
+        conn, db_type = get_connection()
+        p = ph(db_type)
+        cur = conn.cursor()
+        if montelo:
+            cur.execute(f"DELETE FROM custom_vehicles WHERE marka = {p} AND montelo = {p}", (marka, montelo))
+        else:
+            cur.execute(f"DELETE FROM custom_vehicles WHERE marka = {p}", (marka,))
+        conn.commit()
+        conn.close()
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+def get_synergeio_suggestions(query: str = "") -> list:
+    """Επιστρέφει λίστα συνεργείων από προηγούμενες εκθέσεις."""
+    try:
+        conn, db_type = get_connection()
+        p = ph(db_type)
+        like = "LIKE"
+        cur = conn.cursor()
+        if query:
+            cur.execute(f"""
+                SELECT DISTINCT synergeio_eponimia, synergeio_dieuthinsi,
+                       synergeio_tilefono, synergeio_kinito, synergeio_fax, synergeio_mail
+                FROM ektheseis
+                WHERE synergeio_eponimia {like} {p}
+                  AND synergeio_eponimia IS NOT NULL
+                  AND synergeio_eponimia != ''
+                ORDER BY synergeio_eponimia
+                LIMIT 10
+            """, (f"%{query}%",))
+        else:
+            cur.execute("""
+                SELECT DISTINCT synergeio_eponimia, synergeio_dieuthinsi,
+                       synergeio_tilefono, synergeio_kinito, synergeio_fax, synergeio_mail
+                FROM ektheseis
+                WHERE synergeio_eponimia IS NOT NULL
+                  AND synergeio_eponimia != ''
+                ORDER BY synergeio_eponimia
+                LIMIT 20
+            """)
+        rows = cur.fetchall()
+        conn.close()
+        return [dict(zip(['eponimia','dieuthinsi','tilefono','kinito','fax','mail'], r))
+                for r in rows]
+    except Exception as e:
+        print(f"Synergeio suggestions error: {e}")
+        return []
+
+def get_synergeio_eponimies() -> list:
+    """Επιστρέφει μόνο τις επωνυμίες για autocomplete."""
+    try:
+        results = get_synergeio_suggestions()
+        return [r['eponimia'] for r in results if r['eponimia']]
+    except:
+        return []
+
+def get_synergeio_full(eponimia: str) -> dict:
+    """Επιστρέφει όλα τα στοιχεία συνεργείου με βάση την επωνυμία."""
+    try:
+        results = get_synergeio_suggestions(eponimia)
+        for r in results:
+            if r['eponimia'] == eponimia:
+                return r
+        return {}
+    except:
+        return {}
 
 def get_statistics_ktirion() -> dict:
     conn, db_type = get_connection()

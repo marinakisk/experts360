@@ -216,6 +216,34 @@ def generate_pdf(data, parts, works, visits, photo_files,
                       f"{data.get('axia','')} €" if data.get('axia') else ''))
     if data.get('ar_plaisiou'):
         story.append(kv2('Αρ. Πλαισίου (VIN):', data.get('ar_plaisiou','')))
+
+    # Επιπλέον πεδία (ΕΘΝΙΚΗ/APEIRON) - μόνο αν συμπληρωμένα
+    if asfalistiki != 'INTERLIFE':
+        for l1, k1, l2, k2 in [
+            ('Χρώμα:', 'xroma', 'Καύσιμο:', 'kaysimo'),
+            ('Κατάσταση Οχήματος:', 'katast_oxima', 'Κίνδυνος:', 'kindynos'),
+            ('Ίχνη Χρωμάτων:', 'ixni_xromatos', 'Φορά Ατυχήματος:', 'fora_atyxima'),
+            ('Σημείο Ελαστικών:', 'elastikon_simeio', 'Τηλέφωνο:', 'tilefono'),
+        ]:
+            v1, v2 = data.get(k1,''), data.get(k2,'')
+            if v1 or v2:
+                story.append(kv2(l1, v1, l2, v2))
+
+        _syn_fields = [
+            ('synergeio_eponimia','Επωνυμία Συνεργείου:'),
+            ('synergeio_dieuthinsi','Διεύθυνση:'),
+            ('synergeio_tilefono','Τηλέφωνο:'),
+            ('synergeio_kinito','Κινητό:'),
+            ('synergeio_fax','Fax:'),
+            ('synergeio_mail','Email:'),
+        ]
+        if any(data.get(k) for k,_ in _syn_fields):
+            story.append(Spacer(1,2*mm))
+            story.append(section('ΣΤΟΙΧΕΙΑ ΣΥΝΕΡΓΕΙΟΥ'))
+            for k, lbl in _syn_fields:
+                if data.get(k):
+                    story.append(kv2(lbl, data.get(k,'')))
+
     story.append(Spacer(1,2*mm))
 
     # ΕΠΙΘΕΩΡΗΣΗ

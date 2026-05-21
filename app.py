@@ -18,7 +18,10 @@ from pdf_generator import generate_pdf
 from database import (init_db, save_ekthesi, load_ekthesi, search_ektheseis,
                       delete_ekthesi, get_statistics, update_status,
                       get_history, export_all_json,
-                      get_axia_stats, get_antallaktiko_stats_all_types)
+                      get_axia_stats, get_antallaktiko_stats_all_types,
+    get_synergeio_eponimies, get_synergeio_full,
+    get_custom_markes, get_custom_montela, add_custom_marka,
+    add_custom_montelo, delete_custom_vehicle)
 
 TEMPLATE_FILE = "ekthesi_clean.xlsx"
 
@@ -295,6 +298,62 @@ def ocr_adeia_kykloforias(img_bytes: bytes):
 # PAGE CONFIG
 # ============================================================
 st.set_page_config(page_title="Experts360 v2.1", page_icon="📋", layout="wide")
+
+# ============================================================
+# LOGIN SYSTEM
+# ============================================================
+import hashlib
+
+# Χρήστες — αλλάξτε τους κωδικούς!
+USERS = {
+    "admin": hashlib.sha256("experts360".encode()).hexdigest(),
+    "kostas": hashlib.sha256("gnomon2026".encode()).hexdigest(),
+}
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def check_login(username: str, password: str) -> bool:
+    return USERS.get(username) == hash_password(password)
+
+def show_login():
+    st.markdown("""
+    <style>
+    .login-box {
+        max-width: 400px;
+        margin: 80px auto;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        background: white;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        import os as _os_login
+        if _os_login.path.exists("logo_experts360.png"):
+            st.image("logo_experts360.png", width=200)
+        st.markdown("### Experts360 v2.1")
+        st.markdown("*Πραγματογνωμοσύνη*")
+        st.markdown("---")
+
+        username = st.text_input("👤 Όνομα χρήστη", key="login_user")
+        password = st.text_input("🔒 Κωδικός", type="password", key="login_pass")
+
+        if st.button("🔓 Είσοδος", type="primary", use_container_width=True):
+            if check_login(username, password):
+                st.session_state['logged_in'] = True
+                st.session_state['username'] = username
+                st.rerun()
+            else:
+                st.error("❌ Λάθος όνομα χρήστη ή κωδικός")
+
+# Έλεγχος login
+if not st.session_state.get('logged_in', False):
+    show_login()
+    st.stop()
 import os as _os
 _col_logo, _col_title = st.columns([1, 5])
 with _col_logo:
@@ -397,6 +456,16 @@ if 'db_ready' not in st.session_state:
 db_icon = "🟢" if st.session_state.get('db_type') in ('sqlite','postgres') else "🔴"
 db_label = {"sqlite":"SQLite (τοπικά)", "postgres":"PostgreSQL (cloud)"}.get(
     st.session_state.get('db_type',''), "Σφάλμα")
+
+# Debug: εμφάνιση URL status
+try:
+    import streamlit as _st2
+    _url = _st2.secrets.get("GNOMON_DB_URL","")
+    if _url:
+        st.session_state['_db_url_found'] = True
+except:
+    _url = ""
+
 st.caption(f"{db_icon} Βάση: {db_label}")
 st.markdown("---")
 
@@ -427,7 +496,7 @@ with st.sidebar:
     kategoria = st.radio("🗂️ Κατηγορία", ["🚗 Οχήματα", "🏢 Κτίρια"], key="kategoria")
     st.markdown("---")
 
-    PAGES = ["📝 Νέα Έκθεση", "🔍 Αναζήτηση", "📊 Στατιστικά"]
+    PAGES = ["📝 Νέα Έκθεση", "🔍 Αναζήτηση", "📊 Στατιστικά", "⚙️ Ρυθμίσεις"]
     if 'nav_index' not in st.session_state:
         st.session_state['nav_index'] = 0
     page = st.radio("📌 Μενού", PAGES, index=st.session_state['nav_index'])
@@ -450,11 +519,79 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption("Experts360 v2.1")
+    st.markdown("---")
+    st.caption(f"👤 {st.session_state.get('username','')}")
+    if st.button("🚪 Αποσύνδεση", use_container_width=True):
+        for k in list(st.session_state.keys()):
+            del st.session_state[k]
+        st.rerun()
 
 # Routing για Κτίρια
 if st.session_state.get('kategoria') == "🏢 Κτίρια":
     from ktirion_ui import show_ktirion_tab
     show_ktirion_tab(page)
+    st.stop()
+
+# Ρυθμίσεις - Διαχείριση μαρκών/μοντέλων
+if page == "⚙️ Ρυθμίσεις":
+    st.subheader("⚙️ Ρυθμίσεις — Μάρκες & Μοντέλα")
+
+    tab1, tab2 = st.tabs(["➕ Προσθήκη", "🗑️ Διαγραφή"])
+
+    with tab1:
+        st.markdown("#### Προσθήκη Νέας Μάρκας")
+        c1, c2 = st.columns([2,1])
+        with c1:
+            new_marka_input = st.text_input("Νέα Μάρκα", placeholder="π.χ. BYD", key="new_marka_input")
+        with c2:
+            st.write("")
+            st.write("")
+            if st.button("➕ Προσθήκη Μάρκας", use_container_width=True):
+                if new_marka_input.strip():
+                    ok, err = add_custom_marka(new_marka_input.strip())
+                    if ok: st.success(f"✅ Προστέθηκε: {new_marka_input}")
+                    else: st.error(f"❌ {err}")
+                else:
+                    st.warning("Γράψε μάρκα")
+
+        st.markdown("#### Προσθήκη Μοντέλου σε Μάρκα")
+        _all_m = sorted(set(get_markes() + get_custom_markes()))
+        c3, c4, c5 = st.columns([2,2,1])
+        with c3:
+            sel_marka_mod = st.selectbox("Μάρκα", [""] + _all_m, key="sel_marka_mod")
+        with c4:
+            new_montelo_input = st.text_input("Νέο Μοντέλο", placeholder="π.χ. Atto 3", key="new_montelo_input")
+        with c5:
+            st.write("")
+            st.write("")
+            if st.button("➕ Μοντέλο", use_container_width=True):
+                if sel_marka_mod and new_montelo_input.strip():
+                    ok, err = add_custom_montelo(sel_marka_mod, new_montelo_input.strip())
+                    if ok: st.success(f"✅ {sel_marka_mod} → {new_montelo_input}")
+                    else: st.error(f"❌ {err}")
+                else:
+                    st.warning("Επίλεξε μάρκα και γράψε μοντέλο")
+
+    with tab2:
+        st.markdown("#### Custom Μάρκες & Μοντέλα")
+        custom_m = get_custom_markes()
+        if not custom_m:
+            st.info("Δεν έχεις προσθέσει custom μάρκες ακόμα.")
+        else:
+            for cm in custom_m:
+                with st.expander(f"🚗 {cm}"):
+                    if st.button(f"🗑️ Διαγραφή μάρκας {cm}", key=f"del_marka_{cm}"):
+                        delete_custom_vehicle(cm)
+                        st.rerun()
+                    montela_cm = get_custom_montela(cm)
+                    if montela_cm:
+                        st.markdown("**Μοντέλα:**")
+                        for mo in montela_cm:
+                            mc1, mc2 = st.columns([4,1])
+                            mc1.write(f"• {mo}")
+                            if mc2.button("🗑️", key=f"del_mo_{cm}_{mo}"):
+                                delete_custom_vehicle(cm, mo)
+                                st.rerun()
     st.stop()
 
 # Αν επιλέξει Αναζήτηση
@@ -735,9 +872,11 @@ with col1:
         st.caption(f"⚠️ VIN: {len(ar_plaisiou)}/17 χαρακτήρες")
     elif ar_plaisiou and len(ar_plaisiou) == 17:
         st.caption("✅ VIN έτοιμο για αναζήτηση")
-    markes = [""] + get_markes()
-    marka_idx = markes.index(st.session_state.get('marka','')) if st.session_state.get('marka','') in markes else 0
-    marka = st.selectbox("Μάρκα", options=markes, index=marka_idx, key="marka")
+    _all_markes = sorted(set(get_markes() + get_custom_markes()))
+    _markes_list = [""] + _all_markes
+    marka = st.selectbox("Μάρκα", options=_markes_list,
+                         index=_markes_list.index(st.session_state.get('marka','')) if st.session_state.get('marka','') in _markes_list else 0,
+                         key="marka")
     proti_adeia    = st.text_input("1η Άδεια Κυκλοφορίας", placeholder="π.χ. 02/05/1965", key="proti_adeia")
     xiliometrites  = st.text_input("Ένδειξη Χιλιομετρητή", key="xiliometrites")
 with col2:
@@ -746,9 +885,67 @@ with col2:
     hm_kteo = st.text_input("Ημ/νία ΚΤΕΟ", placeholder="ΗΗ/ΜΜ/ΕΕΕΕ", key="hm_kteo")
     axia    = st.number_input("Αξία (€)", min_value=0, step=100, key="axia")
 with col3:
-    montela = [""] + get_montela(marka) if marka else [""]
-    montelo_idx = montela.index(st.session_state.get('montelo','')) if st.session_state.get('montelo','') in montela else 0
-    montelo = st.selectbox("Μοντέλο", options=montela, index=montelo_idx, key="montelo")
+    _all_montela = sorted(set(get_montela(marka) + get_custom_montela(marka))) if marka else []
+    _montela_list = [""] + _all_montela
+    montelo = st.selectbox("Μοντέλο", options=_montela_list,
+                           index=_montela_list.index(st.session_state.get('montelo','')) if st.session_state.get('montelo','') in _montela_list else 0,
+                           key="montelo")
+
+# === ΕΠΙΠΛΕΟΝ ΠΕΔΙΑ (μόνο ΕΘΝΙΚΗ/APEIRON) ===
+_asfalistiki_sel = st.session_state.get('asfalistiki','INTERLIFE')
+if _asfalistiki_sel in ('ΕΘΝΙΚΗ ΑΣΦΑΛΙΣΤΙΚΗ','APEIRON ΑΣΦΑΛΙΣΤΙΚΗ'):
+    st.markdown("---")
+    st.markdown("#### 🔎 Επιπλέον Στοιχεία Οχήματος")
+    ea1, ea2, ea3 = st.columns(3)
+    with ea1:
+        xroma       = st.text_input("Χρώμα", key="xroma")
+        kaysimo     = st.text_input("Καύσιμο", placeholder="Βενζίνη/Diesel/Hybrid", key="kaysimo")
+        katast_oxima = st.text_input("Κατάσταση Οχήματος", key="katast_oxima")
+    with ea2:
+        ixni_xromatos  = st.text_input("Ίχνη Χρωμάτων", key="ixni_xromatos")
+        fora_atyxima   = st.text_input("Φορά Ατυχήματος", key="fora_atyxima")
+        elastikon_simeio = st.text_input("Σημείο Ελαστικών", key="elastikon_simeio")
+    with ea3:
+        tilefono       = st.text_input("Τηλέφωνο Ιδιοκτήτη", key="tilefono")
+        _kind_sel = st.selectbox("Κίνδυνος", ["","ΣΑΠ","ΤΡΙΤΟΣ","ΚΑΛΥΨΗ"], key="kindynos_sel")
+        kindynos = st.text_input("ή γράψε κίνδυνο", value=_kind_sel, key="kindynos")
+
+    st.markdown("#### 🔧 Στοιχεία Συνεργείου")
+
+    # Autocomplete συνεργείου
+    _syn_list = get_synergeio_eponimies()
+    if _syn_list:
+        _syn_options = ["-- Νέο συνεργείο --"] + _syn_list
+        _syn_sel = st.selectbox("📋 Επιλογή από προηγούμενα συνεργεία",
+                                _syn_options, key="syn_select",
+                                index=0)
+        if _syn_sel != "-- Νέο συνεργείο --":
+            _syn_data = get_synergeio_full(_syn_sel)
+            if _syn_data and st.button("📥 Φόρτωση στοιχείων", key="syn_load"):
+                for f, v in [('synergeio_eponimia', _syn_data.get('eponimia','')),
+                             ('synergeio_dieuthinsi', _syn_data.get('dieuthinsi','')),
+                             ('synergeio_tilefono', _syn_data.get('tilefono','')),
+                             ('synergeio_kinito', _syn_data.get('kinito','')),
+                             ('synergeio_fax', _syn_data.get('fax','')),
+                             ('synergeio_mail', _syn_data.get('mail',''))]:
+                    st.session_state[f] = v or ''
+                st.rerun()
+
+    sb1, sb2, sb3 = st.columns(3)
+    with sb1:
+        synergeio_eponimia   = st.text_input("Επωνυμία Συνεργείου", key="synergeio_eponimia")
+        synergeio_dieuthinsi = st.text_input("Διεύθυνση", key="synergeio_dieuthinsi")
+    with sb2:
+        synergeio_tilefono = st.text_input("Τηλέφωνο Συνεργείου", key="synergeio_tilefono")
+        synergeio_kinito   = st.text_input("Κινητό Συνεργείου", key="synergeio_kinito")
+    with sb3:
+        synergeio_fax  = st.text_input("Fax", key="synergeio_fax")
+        synergeio_mail = st.text_input("Email Συνεργείου", key="synergeio_mail")
+else:
+    xroma = kaysimo = katast_oxima = ixni_xromatos = fora_atyxima = ''
+    elastikon_simeio = tilefono = kindynos = ''
+    synergeio_eponimia = synergeio_dieuthinsi = synergeio_tilefono = ''
+    synergeio_kinito = synergeio_fax = synergeio_mail = ''
 
 # === VIN DECODER ===
 _vin_val = ar_plaisiou.strip() if ar_plaisiou else ""
@@ -915,8 +1112,9 @@ for i in range(st.session_state.num_parts):
         name = st.text_input("Ανταλλακτικό", key=f"p_name_{i}",
                              label_visibility="collapsed", placeholder="π.χ. ΠΡΟΦΥΛΑΚΤΗΡΑΣ ΠΙΣΩ")
     with cols[1]:
-        ptype = st.selectbox("Τύπος", ["","ΓΝ","ΜΤΧ","ΙΜ"],
-                             key=f"p_type_{i}", label_visibility="collapsed")
+        ptype = st.text_input("ΓΝ/ΙΜ/ΜΤΧ",
+                              key=f"p_type_{i}", label_visibility="collapsed",
+                              placeholder="ΓΝ")
     with cols[2]:
         price = st.number_input("Τιμή", min_value=0.0, step=0.01,
                                 key=f"p_price_{i}", label_visibility="collapsed")
@@ -970,8 +1168,9 @@ for col, lbl in zip(hc, ["**Τύπος**","**Περιγραφή**","**Φανοπ
 for i in range(st.session_state.num_works):
     cols = st.columns([2,3,1,1,1,1])
     with cols[0]:
-        wtype = st.selectbox("Τύπος", ["","ΕΞΑΓΩΓΗ-ΤΟΠΟΘΕΤΗΣΗ","ΕΠΙΣΚΕΥΗ"],
-                             key=f"w_type_{i}", label_visibility="collapsed")
+        wtype = st.text_input("Τύπος εργασίας",
+                             key=f"w_type_{i}", label_visibility="collapsed",
+                             placeholder="ΕΠΙΣΚΕΥΗ")
     with cols[1]:
         desc = st.text_input("Περιγραφή", key=f"w_desc_{i}",
                              label_visibility="collapsed", placeholder="π.χ. ΠΡΟΦΥΛΑΚΤΗΡΑΣ ΠΙΣΩ")
@@ -1154,6 +1353,72 @@ def fill_excel(template_path, _uploaded_files=None, _photo_captions=None):
         ws['C15'].alignment = XLAlign(horizontal='left')
         ws.row_dimensions[15].height = 18
 
+    # Επιπλέον πεδία για ΕΘΝΙΚΗ/APEIRON - μόνο αν συμπληρωμένα
+    asfalistiki_xl = st.session_state.get('asfalistiki','INTERLIFE')
+    if asfalistiki_xl in ('ΕΘΝΙΚΗ ΑΣΦΑΛΙΣΤΙΚΗ','APEIRON ΑΣΦΑΛΙΣΤΙΚΗ'):
+        from openpyxl.styles import Font as XLFont2, Alignment as XLAlign2, PatternFill
+        extra_row = 16
+        extra_fields_xl = [
+            ('xroma', 'Χρώμα:', 'kaysimo', 'Καύσιμο:'),
+            ('katast_oxima', 'Κατάσταση Οχήματος:', 'kindynos', 'Κίνδυνος:'),
+            ('ixni_xromatos', 'Ίχνη Χρωμάτων:', 'fora_atyxima', 'Φορά Ατυχήματος:'),
+            ('elastikon_simeio', 'Σημείο Ελαστικών:', 'tilefono', 'Τηλέφωνο Ιδιοκτήτη:'),
+        ]
+        # Αποθηκεύω τιμές στο session state
+        _extra_vals = {
+            'xroma': st.session_state.get('xroma',''),
+            'kaysimo': st.session_state.get('kaysimo',''),
+            'katast_oxima': st.session_state.get('katast_oxima',''),
+            'kindynos': st.session_state.get('kindynos',''),
+            'ixni_xromatos': st.session_state.get('ixni_xromatos',''),
+            'fora_atyxima': st.session_state.get('fora_atyxima',''),
+            'elastikon_simeio': st.session_state.get('elastikon_simeio',''),
+            'tilefono': st.session_state.get('tilefono',''),
+        }
+        for k1, l1, k2, l2 in extra_fields_xl:
+            v1 = _extra_vals.get(k1,'')
+            v2 = _extra_vals.get(k2,'')
+            if v1 or v2:
+                ws.insert_rows(extra_row)
+                ws[f'B{extra_row}'] = l1
+                ws[f'B{extra_row}'].font = XLFont2(bold=True, size=9)
+                ws[f'C{extra_row}'] = v1
+                ws[f'D{extra_row}'] = l2
+                ws[f'D{extra_row}'].font = XLFont2(bold=True, size=9)
+                ws[f'E{extra_row}'] = v2
+                ws.row_dimensions[extra_row].height = 16
+                extra_row += 1
+
+        # Συνεργείο
+        syn_vals = {
+            'eponimia': st.session_state.get('synergeio_eponimia',''),
+            'dieuthinsi': st.session_state.get('synergeio_dieuthinsi',''),
+            'tilefono': st.session_state.get('synergeio_tilefono',''),
+            'kinito': st.session_state.get('synergeio_kinito',''),
+            'fax': st.session_state.get('synergeio_fax',''),
+            'mail': st.session_state.get('synergeio_mail',''),
+        }
+        if any(syn_vals.values()):
+            ws.insert_rows(extra_row)
+            ws[f'B{extra_row}'] = 'ΣΤΟΙΧΕΙΑ ΣΥΝΕΡΓΕΙΟΥ'
+            ws[f'B{extra_row}'].font = XLFont2(bold=True, size=10)
+            extra_row += 1
+            for lbl, val in [
+                ('Επωνυμία:', syn_vals['eponimia']),
+                ('Διεύθυνση:', syn_vals['dieuthinsi']),
+                ('Τηλέφωνο:', syn_vals['tilefono']),
+                ('Κινητό:', syn_vals['kinito']),
+                ('Fax:', syn_vals['fax']),
+                ('Email:', syn_vals['mail']),
+            ]:
+                if val:
+                    ws.insert_rows(extra_row)
+                    ws[f'B{extra_row}'] = lbl
+                    ws[f'B{extra_row}'].font = XLFont2(bold=True, size=9)
+                    ws[f'C{extra_row}'] = val
+                    ws.row_dimensions[extra_row].height = 16
+                    extra_row += 1
+
     for i, v in enumerate(visits[:2]):
         row = 17 + i
         ds = v.get('date_text','')
@@ -1195,6 +1460,35 @@ def fill_excel(template_path, _uploaded_files=None, _photo_captions=None):
     fp = paratiriseis
     if extra: fp = "Επιπλέον επισκέψεις:" + extra + "\n\n" + fp
     ws['B51'] = fp
+    # Επιπλέον πεδία για ΕΘΝΙΚΗ/APEIRON (μόνο αν έχουν τιμή)
+    if asfalistiki_sel in ('ΕΘΝΙΚΗ ΑΣΦΑΛΙΣΤΙΚΗ', 'APEIRON ΑΣΦΑΛΙΣΤΙΚΗ'):
+        from openpyxl.styles import Font as XLFont2
+        extra_row = 16
+        extra_fields = [
+            ('Τηλέφωνο:', tilefono),
+            ('Χρώμα:', xroma),
+            ('Καύσιμο:', kaysimo),
+            ('Κατάσταση Οχήματος:', katast_oxima),
+            ('Ίχνη Χρωμάτων:', ixni_xromatos),
+            ('Φορά Ατυχήματος:', fora_atyxima),
+            ('Σημείο Ελαστικών:', elastikon_simeio),
+            ('Κίνδυνος:', kindynos),
+            ('Συνεργείο:', synergeio_eponimia),
+            ('Διεύθυνση:', synergeio_dieuthinsi),
+            ('Τηλ. Συνεργείου:', synergeio_tilefono),
+            ('Κινητό:', synergeio_kinito),
+            ('Fax:', synergeio_fax),
+            ('Email:', synergeio_mail),
+        ]
+        for lbl, val in extra_fields:
+            if val and str(val).strip():
+                ws[f'B{extra_row}'] = lbl
+                ws[f'B{extra_row}'].font = XLFont2(bold=True, size=9)
+                ws[f'C{extra_row}'] = str(val)
+                ws[f'C{extra_row}'].font = XLFont2(size=9)
+                ws.row_dimensions[extra_row].height = 16
+                extra_row += 1
+
     asfalistiki_sign = st.session_state.get('asfalistiki', 'INTERLIFE')
     if asfalistiki_sign == 'INTERLIFE':
         ws['B61'] = 'ΓΙΑ ΤΗΝ GNOMON EXPERTS Α.Ε.'
@@ -1381,7 +1675,7 @@ st.subheader("📤 Εξαγωγή Έκθεσης")
 if not os.path.exists(TEMPLATE_FILE):
     st.error(f"⚠️ Δεν βρέθηκε το αρχείο: {TEMPLATE_FILE}")
 else:
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     with c1:
         if st.button("📊 Δημιουργία Excel", type="primary", use_container_width=True):
             try:
@@ -1416,6 +1710,20 @@ else:
                         'xiliometrites':    xiliometrites,
                         'axia':             axia,
                         'hm_kteo':          str(hm_kteo) if hm_kteo else '',
+                        'tilefono':         tilefono,
+                        'xroma':            xroma,
+                        'kaysimo':          kaysimo,
+                        'katast_oxima':     katast_oxima,
+                        'ixni_xromatos':    ixni_xromatos,
+                        'fora_atyxima':     fora_atyxima,
+                        'elastikon_simeio': elastikon_simeio,
+                        'kindynos':         kindynos,
+                        'synergeio_eponimia':   synergeio_eponimia,
+                        'synergeio_dieuthinsi': synergeio_dieuthinsi,
+                        'synergeio_tilefono':   synergeio_tilefono,
+                        'synergeio_kinito':     synergeio_kinito,
+                        'synergeio_fax':        synergeio_fax,
+                        'synergeio_mail':       synergeio_mail,
                     }
                     asfalistiki_sel = st.session_state.get('asfalistiki','INTERLIFE')
                     pdf = generate_pdf(
@@ -1433,3 +1741,49 @@ else:
                                    mime="application/pdf", use_container_width=True)
             except Exception as e:
                 st.error(f"Σφάλμα PDF: {e}"); st.exception(e)
+    with c3:
+        if st.button("☁️ Αποθήκευση στο Drive", use_container_width=True):
+            try:
+                import sys, os
+                sys.path.insert(0, os.path.dirname(__file__))
+                from gdrive import upload_ekthesi_files, get_ekthesi_folder_link
+                with st.spinner("Ανέβασμα στο Google Drive..."):
+                    drive_files = {}
+                    # PDF
+                    _pdf_data2 = {
+                        'ar_zimias': ar_zimias, 'hm_entolhs': str(hm_entolhs) if hm_entolhs else '',
+                        'hm_atyxhmatos': str(hm_atyxhmatos) if hm_atyxhmatos else '',
+                        'topos_atyxhmatos': topos_atyxhmatos, 'idioktitis': idioktitis,
+                        'ar_kykloforias': ar_kykloforias, 'ar_plaisiou': st.session_state.get('ar_plaisiou',''),
+                        'marka': marka, 'montelo': montelo, 'kyvika': kyvika, 'xrisi': xrisi,
+                        'proti_adeia': proti_adeia, 'xiliometrites': xiliometrites,
+                        'axia': axia, 'hm_kteo': str(hm_kteo) if hm_kteo else '',
+                    }
+                    _pdf_bytes = generate_pdf(
+                        data=_pdf_data2, parts=parts, works=works, visits=visits,
+                        photo_files=[], photo_captions=[], paratiriseis=paratiriseis,
+                        onomateponymo=onomateponymo, asfalistiki=st.session_state.get('asfalistiki','INTERLIFE')
+                    )
+                    drive_files['pdf'] = _pdf_bytes
+                    # Excel
+                    _ufiles2 = uploaded_files if 'uploaded_files' in dir() and uploaded_files else []
+                    _pcaps2  = photo_captions if 'photo_captions' in dir() and photo_captions else []
+                    _wb = fill_excel(TEMPLATE_FILE, _uploaded_files=_ufiles2, _photo_captions=_pcaps2)
+                    _xls_buf = io.BytesIO(); _wb.save(_xls_buf); _xls_buf.seek(0)
+                    drive_files['excel'] = _xls_buf.read()
+                    # Φωτογραφίες
+                    if _ufiles2:
+                        drive_files['photos'] = []
+                        for f2 in _ufiles2:
+                            f2.seek(0)
+                            drive_files['photos'].append((f2.read(), f2.name))
+                    links = upload_ekthesi_files(ar_zimias, drive_files)
+                if links:
+                    st.success("✅ Αποθηκεύτηκε στο Drive!")
+                    folder_link = get_ekthesi_folder_link(ar_zimias)
+                    if folder_link:
+                        st.markdown(f"[📁 Άνοιγμα φακέλου]({folder_link})")
+                else:
+                    st.error("❌ Αποτυχία ανεβάσματος")
+            except Exception as e:
+                st.error(f"Drive error: {e}")
