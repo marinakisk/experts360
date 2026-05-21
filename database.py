@@ -45,6 +45,14 @@ POSTGRES_URL = _get_db_url()
 
 def get_connection():
     """Επιστρέφει σύνδεση στη βάση (MySQL → PostgreSQL → SQLite)."""
+    # Debug
+    try:
+        import streamlit as _st_debug
+        _url_debug = _st_debug.secrets.get("GNOMON_DB_URL", "NOT_FOUND")
+        print(f"DB URL found: {'YES' if _url_debug and _url_debug != 'NOT_FOUND' else 'NO'} - starts with: {str(_url_debug)[:30]}")
+    except Exception as _de:
+        print(f"Secrets debug error: {_de}")
+
     # MySQL πρώτα
     host, user, password, database = _get_mysql_config()
     if host and user and database:
