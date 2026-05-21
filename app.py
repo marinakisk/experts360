@@ -452,6 +452,7 @@ if 'db_ready' not in st.session_state:
     ok, db_type = init_db()
     st.session_state['db_ready'] = ok
     st.session_state['db_type'] = db_type if ok else "error"
+    st.session_state['db_error'] = str(db_type) if not ok else ""
 
 db_icon = "🟢" if st.session_state.get('db_type') in ('sqlite','postgres','mysql') else "🔴"
 db_label = {"sqlite":"SQLite (τοπικά)", "postgres":"PostgreSQL (cloud)", "mysql":"MySQL (experts360.gr)"}.get(
@@ -472,6 +473,8 @@ except:
     _url = ""
 
 st.caption(f"{db_icon} Βάση: {db_label}")
+if st.session_state.get('db_error'):
+    st.error(f"DB Error: {st.session_state['db_error'][:200]}")
 st.markdown("---")
 
 # ============================================================
