@@ -1004,7 +1004,10 @@ for _xf in ['ar_zimias','hm_entolhs','hm_atyxhmatos','idioktitis','tilefono',
              'synergeio_kinito','synergeio_fax','synergeio_mail']:
     _xk = f'_xeir_pending_{_xf}'
     if st.session_state.get(_xk):
-        st.session_state[_xf] = st.session_state.pop(_xk)
+        try:
+            st.session_state[_xf] = st.session_state.pop(_xk)
+        except:
+            st.session_state.pop(_xk, None)
 
 idioktitis = st.text_input("Ιδιοκτήτης", placeholder="Επώνυμο Όνομα", key="idioktitis")
 col1, col2, col3 = st.columns(3)
