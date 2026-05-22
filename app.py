@@ -1141,37 +1141,48 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                                 _abbr_lines = [f"{k} = {v}" for k, v in sorted(_abbrs_ocr.items())]
                                 _abbr_text = "\nΛΕΞΙΛΟΓΙΟ ΣΥΝΤΟΜΕΥΣΕΩΝ (χρησιμοποίησε τις πλήρεις λέξεις στα αποτελέσματα):\n" + "\n".join(_abbr_lines) + "\n"
                             _prompt_xeir = """Αυτό είναι χειρόγραφο έντυπο πραγματογνωμοσύνης οχήματος.""" + _abbr_text + """
-Διάβασε ΟΛΟΤΕΛΩΣ τα χειρόγραφα πεδία και επέστρεψε ΜΟΝΟ JSON χωρίς markdown:
+
+ΟΔΗΓΙΕΣ ΑΝΑΓΝΩΣΗΣ:
+- Διάβασε ΜΟΝΟ το περιεχόμενο κάθε κελιού — μην μπερδεύεις πεδία
+- ar_plaisiou = αλφαριθμητικός VIN κωδικός (πχ SJNFCAE16U1K08), ΟΧΙ ημερομηνία
+- ar_zimias = αριθμός ζημίας (πχ 3837541), ΟΧΙ ημερομηνία
+- axia = αριθμός χωρίς € (πχ 18000)
+- xiliometrites = αριθμός χωρίς κόμμα (πχ 256157)
+- Για κοστολόγηση: κάθε γραμμή έχει στήλες ANT/KO, EΞ/ΤΟΠ, ΕΠΙΣΚΕΥΗ, ΒΑΦΗ, ΜΗΧ/ΚΟΣ, ΗΛΕΚΤΡ.
+
+Επέστρεψε ΜΟΝΟ JSON:
 {
-  "ar_zimias": "αριθμός ζημίας ή φακέλου",
-  "hm_entolhs": "ημερομηνία εντολής DD/MM/YY",
-  "hm_atyxhmatos": "ημερομηνία ατυχήματος DD/MM/YY",
-  "etaireia": "ασφαλιστική εταιρεία",
-  "idioktitis": "επώνυμο και όνομα ιδιοκτήτη",
-  "tilefono": "τηλέφωνο ιδιοκτήτη",
-  "ar_kykloforias": "αριθμός κυκλοφορίας πινακίδα",
-  "marka": "μάρκα οχήματος",
-  "montelo": "μοντέλο οχήματος",
-  "ar_plaisiou": "αριθμός πλαισίου VIN",
-  "kyvika": "κυβικά",
-  "xrisi": "χρήση ΙΧ/ΔΧ κλπ",
-  "xroma": "χρώμα",
-  "kaysimo": "καύσιμο βενζίνη/diesel",
-  "proti_adeia": "ημερομηνία 1ης άδειας",
-  "xiliometrites": "χιλιόμετρα",
-  "axia": "εμπορική αξία",
-  "topos_atyxhmatos": "τόπος ατυχήματος",
-  "synergeio_eponimia": "επωνυμία συνεργείου",
-  "synergeio_tilefono": "τηλέφωνο συνεργείου",
-  "paratiriseis": "παρατηρήσεις",
-  "ergasies": [
-    {"perigrafi": "περιγραφή εργασίας", "kostos": "κόστος αριθμός μόνο", "typos": "ΕΞΑΓΩΓΗ/ΕΠΙΣΚΕΥΗ/ΒΑΦΗ/ΗΛΕΚΤΡΟΛΟΓΙΚΑ"}
-  ],
-  "antallaktika": [
-    {"perigrafi": "περιγραφή ανταλλακτικού", "timi": "τιμή αριθμός μόνο"}
+  "ar_zimias": "",
+  "hm_entolhs": "",
+  "hm_atyxhmatos": "",
+  "etaireia": "",
+  "kindynos": "",
+  "idioktitis": "",
+  "tilefono": "",
+  "ar_kykloforias": "",
+  "marka": "",
+  "montelo": "",
+  "ar_plaisiou": "",
+  "xrisi": "",
+  "xroma": "",
+  "kaysimo": "",
+  "proti_adeia": "",
+  "xiliometrites": "",
+  "axia": "",
+  "katast_oxima": "",
+  "ixni_xromatos": "",
+  "fora_atyxima": "",
+  "elastikon_simeio": "",
+  "synergeio_eponimia": "",
+  "synergeio_dieuthinsi": "",
+  "synergeio_tilefono": "",
+  "synergeio_kinito": "",
+  "paratiriseis": "",
+  "kostologisi": [
+    {"perigrafi": "", "ant_ko": 0, "ex_top": 0, "episkevi": 0, "vafi": 0, "mhx_kos": 0, "hlektr": 0}
   ]
 }
-ΣΗΜΑΝΤΙΚΟ: Διάβασε ΟΛΑ τα στοιχεία προσεκτικά. ΜΟΝΟ JSON."""
+ΜΟΝΟ JSON, μηδέν για κενές αριθμητικές τιμές."""
                         elif "Τιμολόγιο" in ocr_type:
                             _prompt_xeir = """Αυτό είναι τιμολόγιο ή προσφορά συνεργείου.
 Διάβασε τα στοιχεία και επέστρεψε ΜΟΝΟ JSON:
@@ -1260,7 +1271,38 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                                 st.session_state[f'_xeir_pending_{dst}'] = str(val).strip()
                                 _applied.append(dst)
 
-                        # Ανταλλακτικά
+                        # Κοστολόγηση (νέο format με όλες τις στήλες)
+                        _kost = _data_xeir.get('kostologisi', [])
+                        if _kost and isinstance(_kost, list):
+                            _kost = [k for k in _kost if str(k.get('perigrafi','')).strip()]
+                            if _kost:
+                                st.session_state['num_parts'] = max(7, len(_kost))
+                                st.session_state['num_works'] = max(5, len(_kost))
+                                for idx_k, k in enumerate(_kost):
+                                    peri = str(k.get('perigrafi','')).strip()
+                                    if peri:
+                                        st.session_state[f'p_name_{idx_k}'] = peri
+                                        st.session_state[f'w_desc_{idx_k}'] = peri
+                                    for fld, skey in [('ant_ko','p_price'),('ex_top','p_price'),
+                                                       ('episkevi','w_fanop'),('vafi','w_vafeas'),
+                                                       ('mhx_kos','w_mix'),('hlektr','w_il')]:
+                                        v = k.get(fld, 0)
+                                        try:
+                                            fv = float(str(v).replace(',','.').replace('€','').strip() or 0)
+                                            if fv > 0:
+                                                if fld in ('ant_ko','ex_top'):
+                                                    st.session_state[f'p_price_{idx_k}'] = fv
+                                                elif fld == 'episkevi':
+                                                    st.session_state[f'w_fanop_{idx_k}'] = fv
+                                                elif fld == 'vafi':
+                                                    st.session_state[f'w_vafeas_{idx_k}'] = fv
+                                                elif fld == 'mhx_kos':
+                                                    st.session_state[f'w_mix_{idx_k}'] = fv
+                                                elif fld == 'hlektr':
+                                                    st.session_state[f'w_il_{idx_k}'] = fv
+                                        except: pass
+
+                        # Ανταλλακτικά (παλιό format)
                         _ants = _data_xeir.get('antallaktika', [])
                         if _ants and isinstance(_ants, list):
                             _ants = [a for a in _ants if a.get('perigrafi','').strip()]
