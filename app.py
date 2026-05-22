@@ -1649,20 +1649,56 @@ if screenshot_file:
 
 st.markdown("**Φωτογραφίες ζημιάς:**")
 uploaded_files = st.file_uploader("Επιλέξτε φωτογραφίες (JPG/PNG)",
-                                   type=['jpg','jpeg','png'], accept_multiple_files=True)
+                                   type=['jpg','jpeg','png'], accept_multiple_files=True,
+                                   key="photo_uploader")
+# Αποθήκευση φωτογραφιών στο session_state για να μη χάνονται
+if uploaded_files:
+    # Αποθηκεύω bytes
+    _saved_photos = []
+    for f2 in uploaded_files:
+        f2.seek(0)
+        _saved_photos.append({'bytes': f2.read(), 'name': f2.name})
+    st.session_state['_saved_photos'] = _saved_photos
+elif st.session_state.get('_saved_photos'):
+    # Αν δεν υπάρχουν νέες αλλά έχουμε αποθηκευμένες
+    pass
+
+# Χρήση αποθηκευμένων φωτογραφιών
+_all_photos = st.session_state.get('_saved_photos', [])
+
+import io as _io_photos
+class _BytesFile:
+    def __init__(self, b, n): self._b = b; self.name = n
+    def seek(self, p): pass
+    def read(self): return self._b
+
+if uploaded_files:
+    _all_photos = [{'bytes': _f.read() if not hasattr(_f,'_b') else _f._b,
+                    'name': _f.name} for _f in uploaded_files]
+    for _fp in _all_photos: 
+        try: uploaded_files[_all_photos.index(_fp)].seek(0)
+        except: pass
+    st.session_state['_saved_photos'] = _all_photos
+
+uploaded_files = [_BytesFile(p['bytes'], p['name']) for p in _all_photos] if _all_photos else []
+
 photo_captions = []
 if uploaded_files:
     st.write(f"**{len(uploaded_files)} φωτογραφίες:**")
     for i, file in enumerate(uploaded_files):
         c1, c2 = st.columns([2,1])
         with c1:
-            st.image(file, use_container_width=True)
+            st.image(file.read(), use_container_width=True)
+            file.seek(0) if hasattr(file,'seek') else None
         with c2:
             cap = st.text_input(f"Περιγραφή #{i+1}", key=f"caption_{i}",
                                 placeholder="π.χ. Πίσω προφυλακτήρας")
             photo_captions.append(cap)
         if i < len(uploaded_files)-1:
             st.markdown("---")
+    if st.button("🗑️ Καθαρισμός φωτογραφιών", key="clear_photos"):
+        st.session_state['_saved_photos'] = []
+        st.rerun()
 st.markdown("---")
 
 # ============================================================
