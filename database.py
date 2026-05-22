@@ -1317,10 +1317,19 @@ def sync_from_cloud(local_db_path: str = "gnomon_db.sqlite") -> tuple:
         cloud_cur = cloud.cursor()
         cloud_cur.execute("SELECT * FROM ektheseis ORDER BY id")
         rows = cloud_cur.fetchall()
+        # Παίρνω column names
+        if rows:
+            _desc = cloud_cur.description
+            _col_names = [d[0] for d in _desc] if _desc else []
 
         local_cur = local.cursor()
         for row in rows:
-            r = dict(row)
+            if isinstance(row, dict):
+                r = dict(row)
+            elif _col_names:
+                r = dict(zip(_col_names, row))
+            else:
+                continue
             # Unique check
             local_cur.execute("""
                 SELECT id FROM ektheseis
