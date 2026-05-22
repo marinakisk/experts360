@@ -318,6 +318,7 @@ CREATE TABLE IF NOT EXISTS ektheseis (
     visit_place TEXT,
     paratiriseis TEXT,
     onomateponymo TEXT,
+    asfalistiki TEXT DEFAULT '',
     created_at  TIMESTAMP DEFAULT NOW(),
     updated_at  TIMESTAMP DEFAULT NOW(),
     status      TEXT DEFAULT 'draft'
@@ -400,6 +401,29 @@ def init_db():
                 s = stmt.strip()
                 if s:
                     cur.execute(s)
+            # Προσθήκη στηλών που λείπουν (ALTER TABLE για παλιές βάσεις)
+            extra_cols = [
+                ("ektheseis", "asfalistiki", "TEXT DEFAULT ''"),
+                ("ektheseis", "xroma", "TEXT DEFAULT ''"),
+                ("ektheseis", "kaysimo", "TEXT DEFAULT ''"),
+                ("ektheseis", "katast_oxima", "TEXT DEFAULT ''"),
+                ("ektheseis", "ixni_xromatos", "TEXT DEFAULT ''"),
+                ("ektheseis", "fora_atyxima", "TEXT DEFAULT ''"),
+                ("ektheseis", "elastikon_simeio", "TEXT DEFAULT ''"),
+                ("ektheseis", "tilefono", "TEXT DEFAULT ''"),
+                ("ektheseis", "kindynos", "TEXT DEFAULT ''"),
+                ("ektheseis", "synergeio_eponimia", "TEXT DEFAULT ''"),
+                ("ektheseis", "synergeio_dieuthinsi", "TEXT DEFAULT ''"),
+                ("ektheseis", "synergeio_tilefono", "TEXT DEFAULT ''"),
+                ("ektheseis", "synergeio_kinito", "TEXT DEFAULT ''"),
+                ("ektheseis", "synergeio_fax", "TEXT DEFAULT ''"),
+                ("ektheseis", "synergeio_mail", "TEXT DEFAULT ''"),
+            ]
+            for tbl, col, typ in extra_cols:
+                try:
+                    cur.execute(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {typ}")
+                except:
+                    pass
         else:
             # SQLite - χρησιμοποιεί AUTOINCREMENT
             sqlite_schema = SCHEMA_SQLITE + SCHEMA_KTIRION_SQLITE + """
@@ -1168,16 +1192,27 @@ def sync_to_cloud(local_db_path: str = "gnomon_db.sqlite") -> tuple:
 
             # Insert στο cloud (χωρίς το id)
             cols = [k for k in r.keys() if k != 'id']
-            vals = [r[c] for c in cols]
+            # Καθαρισμός ημερομηνιών για PostgreSQL
+            safe_vals = []
+            date_cols = ['created_at','updated_at','hm_entolhs','hm_atyxhmatos','hm_kteo','visit_date']
+            for c in cols:
+                v = r[c]
+                if c in date_cols and v and isinstance(v, str):
+                    # Αν είναι DD/MM/YYYY μετατροπή σε NULL
+                    import re as _re_sync
+                    if _re_sync.match(r'^\d{2}/\d{2}/\d{4}', str(v)):
+                        v = None
+                safe_vals.append(v)
             placeholders = ', '.join([p] * len(cols))
             col_names = ', '.join(cols)
             try:
                 cloud_cur.execute(f"""
                     INSERT INTO ektheseis ({col_names}) VALUES ({placeholders})
-                """, vals)
+                """, safe_vals)
                 synced += 1
             except Exception as ie:
                 print(f"Insert error: {ie}")
+                cloud.rollback()
                 skipped += 1
 
         cloud.commit()
