@@ -251,6 +251,22 @@ def ocr_adeia_kykloforias(img_bytes: bytes):
         _fmt = _img_check.format or "JPEG"
         media_type = "image/jpeg" if _fmt.upper() in ("JPEG","JPG") else "image/png"
 
+        # Συμπίεση και auto-rotate εικόνας
+        import io as _io2
+        _pil2 = PILImage.open(_io.BytesIO(img_bytes))
+        # EXIF rotation fix
+        try:
+            from PIL import ImageOps
+            _pil2 = ImageOps.exif_transpose(_pil2)
+        except: pass
+        if _pil2.width > 1600:
+            _ratio2 = 1600/_pil2.width
+            _pil2 = _pil2.resize((1600, int(_pil2.height*_ratio2)), PILImage.LANCZOS)
+        if _pil2.mode in ('RGBA','P'): _pil2 = _pil2.convert('RGB')
+        _buf2 = _io2.BytesIO()
+        _pil2.save(_buf2, format='JPEG', quality=85)
+        img_bytes = _buf2.getvalue()
+
         img_b64 = base64.standard_b64encode(img_bytes).decode("utf-8")
 
         msg = client.messages.create(
@@ -269,20 +285,21 @@ def ocr_adeia_kykloforias(img_bytes: bytes):
                     },
                     {
                         "type": "text",
-                        "text": """Αυτή είναι ελληνική άδεια κυκλοφορίας οχήματος.
-Διάβασε προσεκτικά και επέστρεψε ΜΟΝΟ ένα JSON object.
-Αν δεν μπορείς να διαβάσεις κάποιο πεδίο, βάλε κενό string "".
+                        "text": """Αυτή είναι ελληνική άδεια κυκλοφορίας οχήματος - μπορεί να είναι στραμμένη.
+Διάβασε προσεκτικά ΟΛΑ τα πεδία και επέστρεψε ΜΟΝΟ JSON χωρίς markdown:
 {
-  "ar_kykloforias": "πινακίδα π.χ. ΑΤΗ8498",
-  "ar_plaisiou": "αριθμός πλαισίου VIN",
+  "ar_kykloforias": "πινακίδα κυκλοφορίας πχ ΖΜΙ1487",
+  "ar_plaisiou": "αριθμός πλαισίου VIN 17 χαρακτήρες",
   "idioktitis": "επώνυμο και όνομα ιδιοκτήτη",
-  "marka": "μάρκα οχήματος",
-  "montelo": "μοντέλο",
-  "kyvika": "κυβισμός σε cc χωρίς μονάδα",
-  "proti_adeia": "ημερομηνία πρώτης άδειας π.χ. 14/10/2011",
-  "xrisi": "χρήση π.χ. ΕΙΧ ή ΦΙΧ"
+  "marka": "μάρκα πχ VOLKSWAGEN",
+  "montelo": "μοντέλο πχ POLO",
+  "kyvika": "κυβισμός μόνο αριθμός πχ 1390",
+  "proti_adeia": "ημερομηνία 1ης άδειας πχ 31/02/2003",
+  "xrisi": "χρήση πχ ΕΠΙΒΑΤΙΚΟ ή ΕΙΧ",
+  "xroma": "χρώμα πχ ΜΑΥΡΟ",
+  "kaysimo": "καύσιμο πχ ΒΕΝΖΙΝΗ ή DIESEL"
 }
-Επέστρεψε ΜΟΝΟ το JSON, χωρίς άλλο κείμενο."""
+ΜΟΝΟ JSON."""
                     }
                 ],
             }]
@@ -831,7 +848,7 @@ if _has_gemini:
                     # Χρησιμοποιούμε pending pattern για να αποφύγουμε
                     # το "cannot modify after widget instantiated" error
                     for field in ['idioktitis','ar_kykloforias','ar_plaisiou',
-                                  'proti_adeia','kyvika','xrisi']:
+                                  'proti_adeia','kyvika','xrisi','xroma','kaysimo']:
                         if merged.get(field):
                             st.session_state[f'_ocr_pending_{field}'] = merged[field]
 
@@ -876,7 +893,7 @@ if st.session_state.get('_vin_pending_xrisi'):
     st.session_state['xrisi']   = st.session_state.pop('_vin_pending_xrisi')
 
 # Εφαρμογή OCR pending values πριν τα widgets
-for _ocr_field in ['idioktitis','ar_kykloforias','ar_plaisiou','proti_adeia','kyvika','xrisi']:
+for _ocr_field in ['idioktitis','ar_kykloforias','ar_plaisiou','proti_adeia','kyvika','xrisi','xroma','kaysimo']:
     _ocr_key = f'_ocr_pending_{_ocr_field}'
     if st.session_state.get(_ocr_key):
         st.session_state[_ocr_field] = st.session_state.pop(_ocr_key)
@@ -890,6 +907,7 @@ for _xf in ['ar_zimias','hm_entolhs','hm_atyxhmatos','idioktitis','tilefono',
              'ar_kykloforias','marka','montelo','ar_plaisiou','kyvika','xrisi',
              'xroma','kaysimo','proti_adeia','xiliometrites','axia','hm_kteo',
              'katast_oxima','ixni_xromatos','fora_atyxima','paratiriseis',
+             'topos_atyxhmatos',
              'synergeio_eponimia','synergeio_dieuthinsi','synergeio_tilefono',
              'synergeio_kinito','synergeio_fax','synergeio_mail']:
     _xk = f'_xeir_pending_{_xf}'
@@ -1014,43 +1032,37 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                         # Prompt ανάλογα με τύπο
                         if "Χειρόγραφο" in ocr_type:
                             _prompt_xeir = """Αυτό είναι χειρόγραφο έντυπο πραγματογνωμοσύνης οχήματος.
-Έχει 4 μαύρες κουκκίδες στις γωνίες για alignment.
-Διάβασε ΟΛΟΤΕΛΩΣ τα χειρόγραφα πεδία και επέστρεψε ΜΟΝΟ JSON:
+Διάβασε ΟΛΟΤΕΛΩΣ τα χειρόγραφα πεδία και επέστρεψε ΜΟΝΟ JSON χωρίς markdown:
 {
-  "ar_zimias": "",
-  "hm_entolhs": "",
-  "hm_atyxhmatos": "",
-  "etaireia": "",
-  "asfalismos": "",
-  "idioktitis": "",
-  "tilefono": "",
-  "ar_kykloforias": "",
-  "marka": "",
-  "montelo": "",
-  "ar_plaisiou": "",
-  "kyvika": "",
-  "xrisi": "",
-  "xroma": "",
-  "kaysimo": "",
-  "proti_adeia": "",
-  "xiliometrites": "",
-  "axia": "",
-  "hm_kteo": "",
-  "katast_oxima": "",
-  "ixni_xromatos": "",
-  "fora_atyxima": "",
-  "synergeio_eponimia": "",
-  "synergeio_dieuthinsi": "",
-  "synergeio_tilefono": "",
-  "synergeio_kinito": "",
-  "synergeio_fax": "",
-  "synergeio_mail": "",
-  "paratiriseis": "",
+  "ar_zimias": "αριθμός ζημίας ή φακέλου",
+  "hm_entolhs": "ημερομηνία εντολής DD/MM/YY",
+  "hm_atyxhmatos": "ημερομηνία ατυχήματος DD/MM/YY",
+  "etaireia": "ασφαλιστική εταιρεία",
+  "idioktitis": "επώνυμο και όνομα ιδιοκτήτη",
+  "tilefono": "τηλέφωνο ιδιοκτήτη",
+  "ar_kykloforias": "αριθμός κυκλοφορίας πινακίδα",
+  "marka": "μάρκα οχήματος",
+  "montelo": "μοντέλο οχήματος",
+  "ar_plaisiou": "αριθμός πλαισίου VIN",
+  "kyvika": "κυβικά",
+  "xrisi": "χρήση ΙΧ/ΔΧ κλπ",
+  "xroma": "χρώμα",
+  "kaysimo": "καύσιμο βενζίνη/diesel",
+  "proti_adeia": "ημερομηνία 1ης άδειας",
+  "xiliometrites": "χιλιόμετρα",
+  "axia": "εμπορική αξία",
+  "topos_atyxhmatos": "τόπος ατυχήματος",
+  "synergeio_eponimia": "επωνυμία συνεργείου",
+  "synergeio_tilefono": "τηλέφωνο συνεργείου",
+  "paratiriseis": "παρατηρήσεις",
+  "ergasies": [
+    {"perigrafi": "περιγραφή εργασίας", "kostos": "κόστος αριθμός μόνο", "typos": "ΕΞΑΓΩΓΗ/ΕΠΙΣΚΕΥΗ/ΒΑΦΗ/ΗΛΕΚΤΡΟΛΟΓΙΚΑ"}
+  ],
   "antallaktika": [
-    {"perigrafi": "", "ant_ko": "", "ex_top": "", "episkevi": "", "vafi": "", "mhx_kos": "", "hlektr": ""}
+    {"perigrafi": "περιγραφή ανταλλακτικού", "timi": "τιμή αριθμός μόνο"}
   ]
 }
-Αν δεν μπορείς να διαβάσεις κάποιο πεδίο, βάλε "". ΜΟΝΟ JSON."""
+ΣΗΜΑΝΤΙΚΟ: Διάβασε ΟΛΑ τα στοιχεία προσεκτικά. ΜΟΝΟ JSON."""
                         elif "Τιμολόγιο" in ocr_type:
                             _prompt_xeir = """Αυτό είναι τιμολόγιο ή προσφορά συνεργείου.
 Διάβασε τα στοιχεία και επέστρεψε ΜΟΝΟ JSON:
@@ -1130,19 +1142,43 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                                 st.session_state[f'_xeir_pending_{dst}'] = str(val).strip()
                                 _applied.append(dst)
 
-                        # Ανταλλακτικά από τιμολόγιο ή χειρόγραφο
+                        # Ανταλλακτικά
                         _ants = _data_xeir.get('antallaktika', [])
                         if _ants and isinstance(_ants, list):
-                            for idx_a, ant in enumerate(_ants):
-                                if idx_a >= st.session_state.get('num_parts', 7):
-                                    st.session_state['num_parts'] = idx_a + 1
-                                perigrafi = ant.get('perigrafi','') or ant.get('perigrafi','')
-                                timi = ant.get('ant_ko','') or ant.get('timi_synolo','') or ant.get('timi_monadas','')
-                                if perigrafi:
-                                    st.session_state[f'p_name_{idx_a}'] = str(perigrafi)
-                                if timi:
-                                    try: st.session_state[f'p_price_{idx_a}'] = float(str(timi).replace(',','.').replace('€','').strip())
-                                    except: pass
+                            _ants = [a for a in _ants if a.get('perigrafi','').strip()]
+                            if _ants:
+                                st.session_state['num_parts'] = max(7, len(_ants))
+                                for idx_a, ant in enumerate(_ants):
+                                    perigrafi = ant.get('perigrafi','').strip()
+                                    timi = ant.get('timi','') or ant.get('ant_ko','') or ant.get('timi_synolo','') or ''
+                                    if perigrafi:
+                                        st.session_state[f'p_name_{idx_a}'] = perigrafi
+                                    if timi:
+                                        try: st.session_state[f'p_price_{idx_a}'] = float(str(timi).replace(',','.').replace('€','').strip())
+                                        except: pass
+
+                        # Εργασίες
+                        _ergs = _data_xeir.get('ergasies', [])
+                        if _ergs and isinstance(_ergs, list):
+                            _ergs = [e for e in _ergs if e.get('perigrafi','').strip()]
+                            if _ergs:
+                                st.session_state['num_works'] = max(5, len(_ergs))
+                                for idx_e, erg in enumerate(_ergs):
+                                    perigrafi_e = erg.get('perigrafi','').strip()
+                                    kostos_e = erg.get('kostos','').strip()
+                                    typos_e = erg.get('typos','ΕΠΙΣΚΕΥΗ').strip()
+                                    if perigrafi_e:
+                                        st.session_state[f'w_desc_{idx_e}'] = perigrafi_e
+                                        st.session_state[f'w_type_{idx_e}'] = typos_e
+                                    if kostos_e:
+                                        try:
+                                            _k = float(str(kostos_e).replace(',','.').replace('€','').strip())
+                                            st.session_state[f'w_fanop_{idx_e}'] = _k
+                                        except: pass
+
+                        # Επίσης topos_atyxhmatos
+                        if _data_xeir.get('topos_atyxhmatos'):
+                            st.session_state['_xeir_pending_topos_atyxhmatos'] = _data_xeir['topos_atyxhmatos']
 
                         if _applied or _ants:
                             with st.expander("📋 Στοιχεία που αναγνωρίστηκαν", expanded=True):
