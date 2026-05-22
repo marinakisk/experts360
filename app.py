@@ -884,6 +884,18 @@ if st.session_state.get('_ocr_pending_marka'):
     st.session_state['marka']   = st.session_state.pop('_ocr_pending_marka')
 if st.session_state.get('_ocr_pending_montelo'):
     st.session_state['montelo'] = st.session_state.pop('_ocr_pending_montelo')
+
+# Εφαρμογή χειρόγραφου OCR pending values
+for _xf in ['ar_zimias','hm_entolhs','hm_atyxhmatos','idioktitis','tilefono',
+             'ar_kykloforias','marka','montelo','ar_plaisiou','kyvika','xrisi',
+             'xroma','kaysimo','proti_adeia','xiliometrites','axia','hm_kteo',
+             'katast_oxima','ixni_xromatos','fora_atyxima','paratiriseis',
+             'synergeio_eponimia','synergeio_dieuthinsi','synergeio_tilefono',
+             'synergeio_kinito','synergeio_fax','synergeio_mail']:
+    _xk = f'_xeir_pending_{_xf}'
+    if st.session_state.get(_xk):
+        st.session_state[_xf] = st.session_state.pop(_xk)
+
 idioktitis = st.text_input("Ιδιοκτήτης", placeholder="Επώνυμο Όνομα", key="idioktitis")
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -1091,7 +1103,7 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                         _text_xeir = _re_xeir.sub(r"```json|```", "", _text_xeir).strip()
                         _data_xeir = _json_xeir.loads(_text_xeir)
 
-                        # Εφαρμογή δεδομένων στη φόρμα
+                        # Εφαρμογή δεδομένων στη φόρμα με pending pattern
                         _applied = []
                         _field_map = {
                             'ar_zimias':'ar_zimias', 'hm_entolhs':'hm_entolhs',
@@ -1114,7 +1126,8 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                         for src, dst in _field_map.items():
                             val = _data_xeir.get(src, '')
                             if val and str(val).strip():
-                                st.session_state[dst] = str(val).strip()
+                                # Χρησιμοποιούμε pending pattern
+                                st.session_state[f'_xeir_pending_{dst}'] = str(val).strip()
                                 _applied.append(dst)
 
                         # Ανταλλακτικά από τιμολόγιο ή χειρόγραφο
