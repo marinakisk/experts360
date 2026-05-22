@@ -710,16 +710,32 @@ if page == "⚙️ Ρυθμίσεις":
 if page == "🔍 Αναζήτηση":
     st.subheader("🔍 Αναζήτηση Εκθέσεων")
 
-    col1, col2 = st.columns([3,1])
-    with col1:
+    # Φίλτρα αναζήτησης
+    fc1, fc2, fc3 = st.columns([3,1,1])
+    with fc1:
         q = st.text_input("Αναζήτηση (αρ.ζημίας, ιδιοκτήτης, πινακίδα, μάρκα...)",
                           placeholder="π.χ. Toyota ή ΓΙΔΟΠΟΥΛΟΣ")
-    with col2:
+    with fc2:
         status_filter = st.selectbox("Status", ["","draft","final","archived"],
                                      format_func=lambda x: {"":"Όλα","draft":"Προσχέδιο",
                                      "final":"Τελική","archived":"Αρχείο"}.get(x,x))
+    with fc3:
+        asfalistiki_filter = st.selectbox("Ασφαλιστική",
+                                          ["","INTERLIFE","ΕΘΝΙΚΗ ΑΣΦΑΛΙΣΤΙΚΗ","APEIRON ΑΣΦΑΛΙΣΤΙΚΗ"],
+                                          format_func=lambda x: x if x else "Όλες")
 
-    results = search_ektheseis(query=q, status=status_filter, limit=100)
+    fc4, fc5, fc6 = st.columns(3)
+    with fc4:
+        marka_filter = st.text_input("Μάρκα", placeholder="π.χ. Toyota", key="s_marka")
+    with fc5:
+        hm_from = st.text_input("Από ημερομηνία", placeholder="ΗΗ/ΜΜ/ΕΕΕΕ", key="s_hm_from")
+    with fc6:
+        hm_to = st.text_input("Έως ημερομηνία", placeholder="ΗΗ/ΜΜ/ΕΕΕΕ", key="s_hm_to")
+
+    results = search_ektheseis(query=q, status=status_filter,
+                               asfalistiki=asfalistiki_filter,
+                               marka=marka_filter,
+                               hm_from=hm_from, hm_to=hm_to, limit=100)
 
     st.write(f"**{len(results)} εκθέσεις**")
 
