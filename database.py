@@ -402,6 +402,16 @@ def init_db():
                 if s:
                     cur.execute(s)
             # Προσθήκη στηλών που λείπουν (ALTER TABLE για παλιές βάσεις)
+            # Δημιουργία πίνακα abbreviations
+            try:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS abbreviations (
+                        id SERIAL PRIMARY KEY,
+                        abbreviation TEXT NOT NULL UNIQUE,
+                        full_text TEXT NOT NULL
+                    )
+                """)
+            except: pass
             extra_cols = [
                 ("ektheseis", "asfalistiki", "TEXT DEFAULT ''"),
                 ("ektheseis", "xroma", "TEXT DEFAULT ''"),
@@ -432,6 +442,11 @@ CREATE TABLE IF NOT EXISTS custom_vehicles (
     marka TEXT NOT NULL,
     montelo TEXT NOT NULL DEFAULT '',
     UNIQUE(marka, montelo)
+);
+CREATE TABLE IF NOT EXISTS abbreviations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    abbreviation TEXT NOT NULL UNIQUE,
+    full_text TEXT NOT NULL
 );
 """
             conn.executescript(sqlite_schema)
@@ -495,7 +510,8 @@ def save_ekthesi(data: dict, parts: list, works: list,
             cur.execute(f"INSERT INTO ektheseis ({cols}) VALUES ({phs})", list(fields.values()))
             if db_type == "postgres":
                 cur.execute("SELECT lastval()")
-                ekthesi_id = cur.fetchone()[0]
+                _lv = cur.fetchone()
+                ekthesi_id = _lv[0] if isinstance(_lv,(list,tuple)) else list(_lv.values())[0]
             else:
                 ekthesi_id = cur.lastrowid
             action = "ΔΗΜΙΟΥΡΓΙΑ"
@@ -921,7 +937,7 @@ def save_ekthesi_ktiriou(data: dict, grammes: list,
                         list(fields.values()))
             if db_type == "postgres":
                 cur.execute("SELECT lastval()")
-            ekthesi_id = cur.lastrowid if db_type == "sqlite" else cur.fetchone()[0]
+            ekthesi_id = cur.lastrowid if db_type == "sqlite" else (_fv := cur.fetchone(), _fv[0] if isinstance(_fv,(list,tuple)) else list(_fv.values())[0] if _fv else 0)[1]
             action = "ΔΗΜΙΟΥΡΓΙΑ"
 
         cur.execute(f"DELETE FROM grammes_zimias_ktiriou WHERE ekthesi_id={p}", [ekthesi_id])
@@ -1022,6 +1038,47 @@ def delete_ekthesi_ktiriou(ekthesi_id: int) -> tuple:
     finally:
         conn.close()
 
+
+def get_abbreviations() -> dict:
+    """Επιστρέφει λεξιλόγιο συντομεύσεων."""
+    try:
+        conn, db_type = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT abbreviation, full_text FROM abbreviations ORDER BY abbreviation")
+        rows = cur.fetchall()
+        conn.close()
+        return {(r[0] if isinstance(r,(list,tuple)) else r.get('abbreviation','')): 
+                (r[1] if isinstance(r,(list,tuple)) else r.get('full_text','')) 
+                for r in rows}
+    except:
+        return {}
+
+def add_abbreviation(abbr: str, full_text: str) -> tuple:
+    """Προσθήκη συντόμευσης."""
+    try:
+        conn, db_type = get_connection()
+        p = ph(db_type)
+        cur = conn.cursor()
+        cur.execute(f"INSERT OR REPLACE INTO abbreviations (abbreviation, full_text) VALUES ({p},{p})",
+                   (abbr.upper().strip(), full_text.strip()))
+        conn.commit()
+        conn.close()
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+def delete_abbreviation(abbr: str) -> tuple:
+    """Διαγραφή συντόμευσης."""
+    try:
+        conn, db_type = get_connection()
+        p = ph(db_type)
+        cur = conn.cursor()
+        cur.execute(f"DELETE FROM abbreviations WHERE abbreviation = {p}", (abbr,))
+        conn.commit()
+        conn.close()
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 def get_custom_markes() -> list:
     """Επιστρέφει custom μάρκες από βάση."""
@@ -1282,9 +1339,9 @@ def get_statistics_ktirion() -> dict:
         cur = conn.cursor()
         stats = {}
         cur.execute("SELECT COUNT(*) FROM ektheseis_ktirion")
-        stats["total"] = cur.fetchone()[0]
+        stats["total"] = (_fv := cur.fetchone(), _fv[0] if isinstance(_fv,(list,tuple)) else list(_fv.values())[0] if _fv else 0)[1]
         cur.execute("SELECT COALESCE(SUM(total_ektimisi),0) FROM ektheseis_ktirion")
-        stats["total_ektimisi"] = cur.fetchone()[0]
+        stats["total_ektimisi"] = (_fv := cur.fetchone(), _fv[0] if isinstance(_fv,(list,tuple)) else list(_fv.values())[0] if _fv else 0)[1]
         cur.execute("""
             SELECT COUNT(*) FROM ektheseis_ktirion
             WHERE created_at >= date('now','-30 days')
@@ -1292,7 +1349,8 @@ def get_statistics_ktirion() -> dict:
             SELECT COUNT(*) FROM ektheseis_ktirion
             WHERE created_at >= NOW() - INTERVAL '30 days'
         """)
-        stats["last_30_days"] = cur.fetchone()[0]
+        _rk3 = cur.fetchone()
+        stats["last_30_days"] = _rk3[0] if isinstance(_rk3,(list,tuple)) else (list(_rk3.values())[0] if _rk3 else 0)
         cur.execute("""
             SELECT asfalistiki, COUNT(*) as cnt
             FROM ektheseis_ktirion WHERE asfalistiki != ''

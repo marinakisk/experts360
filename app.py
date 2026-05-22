@@ -22,7 +22,8 @@ from database import (init_db, save_ekthesi, load_ekthesi, search_ektheseis,
     get_synergeio_eponimies, get_synergeio_full,
     get_custom_markes, get_custom_montela, add_custom_marka,
     add_custom_montelo, delete_custom_vehicle,
-    sync_to_cloud, sync_from_cloud)
+    sync_to_cloud, sync_from_cloud,
+    get_abbreviations, add_abbreviation, delete_abbreviation)
 
 TEMPLATE_FILE = "ekthesi_clean.xlsx"
 
@@ -550,7 +551,7 @@ if st.session_state.get('kategoria') == "🏢 Κτίρια":
 if page == "⚙️ Ρυθμίσεις":
     st.subheader("⚙️ Ρυθμίσεις — Μάρκες & Μοντέλα")
 
-    tab1, tab2, tab3 = st.tabs(["➕ Προσθήκη", "🗑️ Διαγραφή", "🔄 Συγχρονισμός"])
+    tab1, tab2, tab3, tab4 = st.tabs(["➕ Προσθήκη", "🗑️ Διαγραφή", "🔄 Συγχρονισμός", "✂️ Συντομεύσεις"])
 
     with tab1:
         st.markdown("#### Προσθήκη Νέας Μάρκας")
@@ -631,6 +632,71 @@ if page == "⚙️ Ρυθμίσεις":
                         ok, msg = sync_from_cloud()
                     if ok: st.success(msg)
                     else: st.error(f"❌ {msg}")
+
+    with tab4:
+        st.markdown("#### ✂️ Λεξιλόγιο Συντομεύσεων για OCR")
+        st.caption("Οι συντομεύσεις αυτές θα χρησιμοποιούνται αυτόματα στην αναγνώριση χειρόγραφου εντύπου.")
+
+        # Προεπιλεγμένες αν δεν υπάρχουν
+        _abbrs = get_abbreviations()
+        if not _abbrs:
+            _defaults = {
+                "ΠΡΟ Ε": "ΠΡΟΦΥΛΑΚΤΗΡΑΣ ΕΜΠΡΟΣ",
+                "ΠΡΟ Π": "ΠΡΟΦΥΛΑΚΤΗΡΑΣ ΠΙΣΩ",
+                "ΘΟΛ": "ΘΟΛΟΙ ΠΛΑΣΤΙΚΟΙ",
+                "ΠΤΕΡΟ Ε": "ΠΤΕΡΥΓΙΟ ΕΜΠΡΟΣ",
+                "ΠΤΕΡΟ Π": "ΠΤΕΡΥΓΙΟ ΠΙΣΩ",
+                "ΠΟΡ Α": "ΠΟΡΤΑ ΑΡΙΣΤΕΡΗ",
+                "ΠΟΡ Δ": "ΠΟΡΤΑ ΔΕΞΙΑ",
+                "ΦΑΝ Ε": "ΦΑΝΑΡΙ ΕΜΠΡΟΣ",
+                "ΦΑΝ Π": "ΦΑΝΑΡΙ ΠΙΣΩ",
+                "ΜΑΣ": "ΜΑΣΚΑ",
+                "ΚΑΠΩ": "ΚΑΠΩ",
+                "ΑΡ": "ΑΡΙΣΤΕΡΑ",
+                "Δ": "ΔΕΞΙΑ",
+                "Ε": "ΕΜΠΡΟΣ",
+                "Π": "ΠΙΣΩ",
+                "ΕΞΑ": "ΕΞΑΓΩΓΗ-ΤΟΠΟΘΕΤΗΣΗ",
+                "ΕΠΙ": "ΕΠΙΣΚΕΥΗ",
+                "ΒΑΦ": "ΒΑΦΗ",
+                "ΖΥΛΟ": "ΖΥΛΩΝΑΤΑ",
+                "ΣΠΙΤ": "ΣΠΟΙΛΕΡ/ΣΠΙΤΕΣ",
+                "ΔΙΑ": "ΔΙΑΚΟΣΜΗΤΙΚΟ",
+                "ΦΑΡ": "ΦΑΡΟΠΛΑΙΣΙΟ",
+            }
+            for k, v in _defaults.items():
+                add_abbreviation(k, v)
+            _abbrs = get_abbreviations()
+            st.success("✅ Προστέθηκαν προεπιλεγμένες συντομεύσεις!")
+
+        # Προσθήκη νέας
+        st.markdown("**➕ Νέα Συντόμευση:**")
+        ac1, ac2, ac3 = st.columns([1.5, 3, 1])
+        with ac1:
+            new_abbr_key = st.text_input("Συντόμευση", placeholder="ΠΡΟ Ε", key="new_abbr_key").upper()
+        with ac2:
+            new_abbr_val = st.text_input("Πλήρης λέξη", placeholder="ΠΡΟΦΥΛΑΚΤΗΡΑΣ ΕΜΠΡΟΣ", key="new_abbr_val")
+        with ac3:
+            st.write("")
+            st.write("")
+            if st.button("➕ Προσθήκη", key="add_abbr_btn", use_container_width=True):
+                if new_abbr_key and new_abbr_val:
+                    ok, err = add_abbreviation(new_abbr_key, new_abbr_val)
+                    if ok: st.success(f"✅ {new_abbr_key} → {new_abbr_val}"); st.rerun()
+                    else: st.error(f"❌ {err}")
+
+        st.markdown("---")
+        st.markdown("**📋 Τρέχουσες Συντομεύσεις:**")
+        if _abbrs:
+            for abbr, full in sorted(_abbrs.items()):
+                bc1, bc2, bc3 = st.columns([1.5, 3.5, 0.5])
+                bc1.markdown(f"**{abbr}**")
+                bc2.write(full)
+                if bc3.button("🗑️", key=f"del_abbr_{abbr}"):
+                    delete_abbreviation(abbr)
+                    st.rerun()
+        else:
+            st.info("Δεν υπάρχουν συντομεύσεις ακόμα.")
 
     st.stop()
 
@@ -1031,7 +1097,13 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
 
                         # Prompt ανάλογα με τύπο
                         if "Χειρόγραφο" in ocr_type:
-                            _prompt_xeir = """Αυτό είναι χειρόγραφο έντυπο πραγματογνωμοσύνης οχήματος.
+                            # Φόρτωση συντομεύσεων
+                            _abbrs_ocr = get_abbreviations()
+                            _abbr_text = ""
+                            if _abbrs_ocr:
+                                _abbr_lines = [f"{k} = {v}" for k, v in sorted(_abbrs_ocr.items())]
+                                _abbr_text = "\nΛΕΞΙΛΟΓΙΟ ΣΥΝΤΟΜΕΥΣΕΩΝ (χρησιμοποίησε τις πλήρεις λέξεις στα αποτελέσματα):\n" + "\n".join(_abbr_lines) + "\n"
+                            _prompt_xeir = """Αυτό είναι χειρόγραφο έντυπο πραγματογνωμοσύνης οχήματος.""" + _abbr_text + """
 Διάβασε ΟΛΟΤΕΛΩΣ τα χειρόγραφα πεδία και επέστρεψε ΜΟΝΟ JSON χωρίς markdown:
 {
   "ar_zimias": "αριθμός ζημίας ή φακέλου",
