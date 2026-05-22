@@ -1007,9 +1007,12 @@ for _xf in ['ar_zimias','hm_entolhs','hm_atyxhmatos','idioktitis','tilefono',
         try:
             _val_xf = st.session_state.pop(_xk)
             # Μετατροπή τύπων για number_input fields
-            if _xf in ('axia', 'xiliometrites', 'kyvika'):
+            if _xf == 'axia':
                 try: _val_xf = int(float(str(_val_xf).replace(',','.').replace('€','').strip()))
                 except: _val_xf = 0
+            elif _xf in ('xiliometrites', 'kyvika'):
+                try: _val_xf = str(int(float(str(_val_xf).replace(',','.').strip())))
+                except: _val_xf = str(_val_xf)
             st.session_state[_xf] = _val_xf
         except:
             st.session_state.pop(_xk, None)
