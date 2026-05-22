@@ -612,26 +612,32 @@ if page == "⚙️ Ρυθμίσεις":
         _db_type = st.session_state.get('db_type','sqlite')
         if _db_type == 'sqlite':
             st.warning("⚠️ Δεν υπάρχει σύνδεση cloud. Πρόσθεσε GNOMON_DB_URL στο secrets.toml")
-        else:
-            st.success(f"✅ Cloud: {_db_type}")
-            st.markdown("---")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("**📤 Τοπικό → Cloud**")
-                st.caption("Ανεβάζει τοπικές εκθέσεις στο Supabase")
-                if st.button("📤 Ανέβασμα στο cloud", use_container_width=True):
-                    with st.spinner("Συγχρονισμός..."):
-                        ok, msg = sync_to_cloud()
-                    if ok: st.success(msg)
-                    else: st.error(f"❌ {msg}")
-            with c2:
-                st.markdown("**📥 Cloud → Τοπικό**")
-                st.caption("Κατεβάζει cloud εκθέσεις τοπικά")
-                if st.button("📥 Κατέβασμα από cloud", use_container_width=True):
-                    with st.spinner("Συγχρονισμός..."):
-                        ok, msg = sync_from_cloud()
-                    if ok: st.success(msg)
-                    else: st.error(f"❌ {msg}")
+        elif _db_type in ('postgres','mysql'):
+            import os as _os_sync
+            _has_sqlite = _os_sync.path.exists('gnomon_db.sqlite')
+            if _has_sqlite:
+                st.success(f"✅ Cloud: {_db_type} | Τοπικό: SQLite")
+                st.markdown("---")
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("**📤 Τοπικό → Cloud**")
+                    st.caption("Ανεβάζει τοπικές εκθέσεις στο Supabase")
+                    if st.button("📤 Ανέβασμα στο cloud", use_container_width=True):
+                        with st.spinner("Συγχρονισμός..."):
+                            ok, msg = sync_to_cloud('gnomon_db.sqlite')
+                        if ok: st.success(msg)
+                        else: st.error(f"❌ {msg}")
+                with c2:
+                    st.markdown("**📥 Cloud → Τοπικό**")
+                    st.caption("Κατεβάζει cloud εκθέσεις τοπικά")
+                    if st.button("📥 Κατέβασμα από cloud", use_container_width=True):
+                        with st.spinner("Συγχρονισμός..."):
+                            ok, msg = sync_from_cloud('gnomon_db.sqlite')
+                        if ok: st.success(msg)
+                        else: st.error(f"❌ {msg}")
+            else:
+                st.info("ℹ️ Ο συγχρονισμός είναι διαθέσιμος μόνο τοπικά (Mac/PC).")
+                st.caption("Τρέξε την εφαρμογή τοπικά για να συγχρονίσεις με το cloud.")
 
     with tab4:
         st.markdown("#### ✂️ Λεξιλόγιο Συντομεύσεων για OCR")
