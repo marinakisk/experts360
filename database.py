@@ -384,9 +384,9 @@ def init_db():
         if db_type == "mysql":
             # MySQL/MariaDB
             mysql_schema = (SCHEMA_POSTGRES + SCHEMA_KTIRION_POSTGRES).replace(
-                "SERIAL PRIMARY KEY", "INT AUTO_INCREMENT PRIMARY KEY"
+                "SERIAL PRIMARY KEY", "INT AUTOINCREMENT PRIMARY KEY"
             ).replace("TEXT[]", "TEXT").replace(
-                "AUTOINCREMENT", "AUTO_INCREMENT"
+                "AUTOINCREMENT", "AUTOINCREMENT"
             )
             for stmt in mysql_schema.split(";"):
                 s = stmt.strip()
@@ -400,7 +400,7 @@ def init_db():
             try:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS custom_vehicles (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        id INT AUTOINCREMENT PRIMARY KEY,
                         marka VARCHAR(100) NOT NULL,
                         montelo VARCHAR(100) NOT NULL DEFAULT '',
                         UNIQUE KEY uq_cv (marka, montelo)
@@ -545,13 +545,13 @@ def save_ekthesi(data: dict, parts: list, works: list,
 
         # Εισαγωγή εργασιών
         for i, work in enumerate(works):
-            if not work.get("wtype","").strip() and not work.get("descr","").strip():
+            if not (work.get("wtype","") or work.get("type","")).strip() and not (work.get("descr","") or work.get("desc","")).strip():
                 continue
             cur.execute(f"""
                 INSERT INTO grammes_ergasion
-                (ekthesi_id,type,desc,fanop,vafeas,mixanikos,ilgos,sort_order)
+                (ekthesi_id,wtype,descr,fanop,vafeas,mixanikos,ilgos,sort_order)
                 VALUES ({placeholder(db_type,8)})
-            """, [ekthesi_id, work.get("wtype",""), work.get("descr",""),
+            """, [ekthesi_id, work.get("wtype","") or work.get("type",""), work.get("descr","") or work.get("desc",""),
                   work.get("fanop",0), work.get("vafeas",0),
                   work.get("mixanikos",0), work.get("ilgos",0), i])
 
