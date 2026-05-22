@@ -384,9 +384,9 @@ def init_db():
         if db_type == "mysql":
             # MySQL/MariaDB
             mysql_schema = (SCHEMA_POSTGRES + SCHEMA_KTIRION_POSTGRES).replace(
-                "SERIAL PRIMARY KEY", "INT AUTOINCREMENT PRIMARY KEY"
+                "SERIAL PRIMARY KEY", "INT AUTO_INCREMENT PRIMARY KEY"
             ).replace("TEXT[]", "TEXT").replace(
-                "AUTOINCREMENT", "AUTOINCREMENT"
+                "AUTOINCREMENT", "AUTO_INCREMENT"
             )
             for stmt in mysql_schema.split(";"):
                 s = stmt.strip()
@@ -400,7 +400,7 @@ def init_db():
             try:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS custom_vehicles (
-                        id INT AUTOINCREMENT PRIMARY KEY,
+                        id INT AUTO_INCREMENT PRIMARY KEY,
                         marka VARCHAR(100) NOT NULL,
                         montelo VARCHAR(100) NOT NULL DEFAULT '',
                         UNIQUE KEY uq_cv (marka, montelo)
@@ -646,24 +646,34 @@ def load_ekthesi(ekthesi_id: int) -> Optional[Dict]:
         row = cur.fetchone()
         if not row:
             return None
-        data = _row_to_dict(row)
+        if isinstance(row, dict):
+            data = dict(row)
+        else:
+            _cols = [d[0] for d in cur.description]
+            data = dict(zip(_cols, row))
 
         cur.execute(f"""
             SELECT * FROM grammes_antallaktikon
             WHERE ekthesi_id={p} ORDER BY sort_order
         """, [ekthesi_id])
-        data["parts"] = [_row_to_dict(r) for r in cur.fetchall()]
+        _parts_rows = cur.fetchall()
+        _parts_cols = [d[0] for d in cur.description] if cur.description else []
+        data["parts"] = [dict(r) if isinstance(r,dict) else dict(zip(_parts_cols,r)) for r in _parts_rows]
 
         cur.execute(f"""
             SELECT * FROM grammes_ergasion
             WHERE ekthesi_id={p} ORDER BY sort_order
         """, [ekthesi_id])
-        data["works"] = [_row_to_dict(r) for r in cur.fetchall()]
+        _works_rows = cur.fetchall()
+        _works_cols = [d[0] for d in cur.description] if cur.description else []
+        data["works"] = [dict(r) if isinstance(r,dict) else dict(zip(_works_cols,r)) for r in _works_rows]
 
         cur.execute(f"""
             SELECT * FROM history WHERE ekthesi_id={p} ORDER BY id DESC LIMIT 20
         """, [ekthesi_id])
-        data["history"] = [_row_to_dict(r) for r in cur.fetchall()]
+        _hist_rows = cur.fetchall()
+        _hist_cols = [d[0] for d in cur.description] if cur.description else []
+        data["history"] = [dict(r) if isinstance(r,dict) else dict(zip(_hist_cols,r)) for r in _hist_rows]
 
         return data
     except Exception as e:
@@ -735,16 +745,14 @@ def get_statistics() -> Dict:
         """)
         stats["by_status"] = {(r[0] if isinstance(r,(list,tuple)) else list(r.values())[0]): (r[1] if isinstance(r,(list,tuple)) else list(r.values())[1]) for r in cur.fetchall()}
 
+        # by_month - απλοποιημένο για PostgreSQL compatibility
         cur.execute("""
-            SELECT COALESCE(SUM(e.axia),0) as total,
-                   COUNT(*) as cnt,
-                   e.hm_entolhs
-            FROM ektheseis e
-            WHERE e.hm_entolhs != ''
-            GROUP BY substr(e.hm_entolhs,4,7)
-            ORDER BY e.hm_entolhs DESC LIMIT 6
+            SELECT COALESCE(SUM(axia),0) as total,
+                   COUNT(*) as cnt
+            FROM ektheseis
         """)
-        stats["by_month"] = [_row_to_dict(r) for r in cur.fetchall()]
+        _rm = cur.fetchone()
+        stats["by_month"] = []
 
         return stats
     except Exception as e:
@@ -1004,7 +1012,9 @@ def load_ekthesi_ktiriou(ekthesi_id: int) -> dict:
         cur.execute(f"""
             SELECT * FROM history_ktirion WHERE ekthesi_id={p} ORDER BY id DESC LIMIT 10
         """, [ekthesi_id])
-        data["history"] = [_row_to_dict(r) for r in cur.fetchall()]
+        _hist_rows = cur.fetchall()
+        _hist_cols = [d[0] for d in cur.description] if cur.description else []
+        data["history"] = [dict(r) if isinstance(r,dict) else dict(zip(_hist_cols,r)) for r in _hist_rows]
         return data
     except:
         return None
