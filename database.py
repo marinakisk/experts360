@@ -588,7 +588,7 @@ def search_ektheseis(query: str = "", status: str = "",
             FROM ektheseis {where}
             ORDER BY id DESC LIMIT {limit}
         """, params)
-        return [dict(r) for r in cur.fetchall()]
+        return [_row_to_dict(r) for r in cur.fetchall()]
     except Exception as e:
         print(f"Search error: {e}")
         return []
@@ -610,24 +610,24 @@ def load_ekthesi(ekthesi_id: int) -> Optional[Dict]:
         row = cur.fetchone()
         if not row:
             return None
-        data = dict(row)
+        data = _row_to_dict(row)
 
         cur.execute(f"""
             SELECT * FROM grammes_antallaktikon
             WHERE ekthesi_id={p} ORDER BY sort_order
         """, [ekthesi_id])
-        data["parts"] = [dict(r) for r in cur.fetchall()]
+        data["parts"] = [_row_to_dict(r) for r in cur.fetchall()]
 
         cur.execute(f"""
             SELECT * FROM grammes_ergasion
             WHERE ekthesi_id={p} ORDER BY sort_order
         """, [ekthesi_id])
-        data["works"] = [dict(r) for r in cur.fetchall()]
+        data["works"] = [_row_to_dict(r) for r in cur.fetchall()]
 
         cur.execute(f"""
             SELECT * FROM history WHERE ekthesi_id={p} ORDER BY id DESC LIMIT 20
         """, [ekthesi_id])
-        data["history"] = [dict(r) for r in cur.fetchall()]
+        data["history"] = [_row_to_dict(r) for r in cur.fetchall()]
 
         return data
     except Exception as e:
@@ -708,7 +708,7 @@ def get_statistics() -> Dict:
             GROUP BY substr(e.hm_entolhs,4,7)
             ORDER BY e.hm_entolhs DESC LIMIT 6
         """)
-        stats["by_month"] = [dict(r) for r in cur.fetchall()]
+        stats["by_month"] = [_row_to_dict(r) for r in cur.fetchall()]
 
         return stats
     except Exception as e:
@@ -754,7 +754,7 @@ def get_history(ekthesi_id: int) -> List[Dict]:
             SELECT * FROM history WHERE ekthesi_id={p}
             ORDER BY id DESC
         """, [ekthesi_id])
-        return [dict(r) for r in cur.fetchall()]
+        return [_row_to_dict(r) for r in cur.fetchall()]
     except:
         return []
     finally:
@@ -769,12 +769,12 @@ def export_all_json() -> str:
     try:
         cur = conn.cursor()
         cur.execute("SELECT * FROM ektheseis ORDER BY id")
-        ektheseis = [dict(r) for r in cur.fetchall()]
+        ektheseis = [_row_to_dict(r) for r in cur.fetchall()]
         for e in ektheseis:
             cur.execute("SELECT * FROM grammes_antallaktikon WHERE ekthesi_id=?", [e["id"]])
-            e["parts"] = [dict(r) for r in cur.fetchall()]
+            e["parts"] = [_row_to_dict(r) for r in cur.fetchall()]
             cur.execute("SELECT * FROM grammes_ergasion WHERE ekthesi_id=?", [e["id"]])
-            e["works"] = [dict(r) for r in cur.fetchall()]
+            e["works"] = [_row_to_dict(r) for r in cur.fetchall()]
         return json.dumps(ektheseis, ensure_ascii=False, indent=2)
     finally:
         conn.close()
@@ -959,16 +959,16 @@ def load_ekthesi_ktiriou(ekthesi_id: int) -> dict:
         row = cur.fetchone()
         if not row:
             return None
-        data = dict(row)
+        data = _row_to_dict(row)
         cur.execute(f"""
             SELECT * FROM grammes_zimias_ktiriou
             WHERE ekthesi_id={p} ORDER BY sort_order
         """, [ekthesi_id])
-        data["grammes"] = [dict(r) for r in cur.fetchall()]
+        data["grammes"] = [_row_to_dict(r) for r in cur.fetchall()]
         cur.execute(f"""
             SELECT * FROM history_ktirion WHERE ekthesi_id={p} ORDER BY id DESC LIMIT 10
         """, [ekthesi_id])
-        data["history"] = [dict(r) for r in cur.fetchall()]
+        data["history"] = [_row_to_dict(r) for r in cur.fetchall()]
         return data
     except:
         return None
@@ -1000,7 +1000,7 @@ def search_ektheseis_ktirion(query: str = "", status: str = "", limit: int = 50)
             FROM ektheseis_ktirion
             {where} ORDER BY id DESC LIMIT {p}
         """, params)
-        return [dict(r) for r in cur.fetchall()]
+        return [_row_to_dict(r) for r in cur.fetchall()]
     except Exception as e:
         print(f"Search ktirion error: {e}")
         return []
@@ -1298,7 +1298,7 @@ def get_statistics_ktirion() -> dict:
             FROM ektheseis_ktirion WHERE asfalistiki != ''
             GROUP BY asfalistiki ORDER BY cnt DESC
         """)
-        stats["by_asfalistiki"] = [dict(r) for r in cur.fetchall()]
+        stats["by_asfalistiki"] = [_row_to_dict(r) for r in cur.fetchall()]
         cur.execute("SELECT status, COUNT(*) FROM ektheseis_ktirion GROUP BY status")
         stats["by_status"] = {(r[0] if isinstance(r,(list,tuple)) else list(r.values())[0]): (r[1] if isinstance(r,(list,tuple)) else list(r.values())[1]) for r in cur.fetchall()}
         return stats
