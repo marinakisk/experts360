@@ -9,6 +9,17 @@ import os
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
+def _row_to_dict(row):
+    """Μετατρέπει database row σε dict ανεξάρτητα από driver."""
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return dict(row)
+    try:
+        return dict(row)
+    except:
+        return {i: v for i, v in enumerate(row)}
+
 # ============================================================
 # ΡΥΘΜΙΣΕΙΣ
 # ============================================================
