@@ -1005,7 +1005,12 @@ for _xf in ['ar_zimias','hm_entolhs','hm_atyxhmatos','idioktitis','tilefono',
     _xk = f'_xeir_pending_{_xf}'
     if st.session_state.get(_xk):
         try:
-            st.session_state[_xf] = st.session_state.pop(_xk)
+            _val_xf = st.session_state.pop(_xk)
+            # Μετατροπή τύπων για number_input fields
+            if _xf in ('axia', 'xiliometrites', 'kyvika'):
+                try: _val_xf = int(float(str(_val_xf).replace(',','.').replace('€','').strip()))
+                except: _val_xf = 0
+            st.session_state[_xf] = _val_xf
         except:
             st.session_state.pop(_xk, None)
 
