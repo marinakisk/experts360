@@ -718,6 +718,10 @@ if page == "🔍 Αναζήτηση":
     st.write(f"**{len(results)} εκθέσεις**")
 
     for r in results:
+        # Safe dict conversion
+        if not isinstance(r, dict):
+            try: r = dict(r)
+            except: r = {i: v for i,v in enumerate(r)}
         status_color = {"draft":"🟡","final":"🟢","archived":"⚫"}.get(r.get('status',''),'⚪')
         with st.expander(
             f"{status_color} #{r['id']} | {r.get('ar_zimias','')} | "
