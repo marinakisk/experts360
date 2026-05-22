@@ -615,7 +615,16 @@ def search_ektheseis(query: str = "", status: str = "",
             FROM ektheseis {where}
             ORDER BY id DESC LIMIT {limit}
         """, params)
-        return [_row_to_dict(r) for r in cur.fetchall()]
+        _cols = ['id','ar_zimias','hm_entolhs','hm_atyx','idioktitis',
+                 'ar_kykl','marka','montelo','axia','status','asfalistiki','created_at']
+        _rows = cur.fetchall()
+        result = []
+        for row in _rows:
+            if isinstance(row, dict):
+                result.append(dict(row))
+            else:
+                result.append(dict(zip(_cols, row)))
+        return result
     except Exception as e:
         print(f"Search error: {e}")
         return []
