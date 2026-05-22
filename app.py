@@ -1195,12 +1195,21 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                             fx2.seek(0)
                             _img_b = fx2.read()
                             _img_b64 = _b64_xeir.standard_b64encode(_img_b).decode()
+                            # Μετατροπή σε JPEG για αξιόπιστο media_type
                             from PIL import Image as _PILX
-                            _fmt_x = _PILX.open(__import__('io').BytesIO(_img_b)).format or "JPEG"
-                            _mime_x = "image/jpeg" if _fmt_x.upper() in ("JPEG","JPG") else "image/png"
+                            import io as _io_x
+                            _pil_x = _PILX.open(_io_x.BytesIO(_img_b))
+                            try:
+                                from PIL import ImageOps as _IOps
+                                _pil_x = _IOps.exif_transpose(_pil_x)
+                            except: pass
+                            if _pil_x.mode in ('RGBA','P','LA'): _pil_x = _pil_x.convert('RGB')
+                            _buf_x = _io_x.BytesIO()
+                            _pil_x.save(_buf_x, format='JPEG', quality=85)
+                            _img_b64 = __import__('base64').standard_b64encode(_buf_x.getvalue()).decode()
                             _msgs_content.append({
                                 "type": "image",
-                                "source": {"type": "base64", "media_type": _mime_x, "data": _img_b64}
+                                "source": {"type": "base64", "media_type": "image/jpeg", "data": _img_b64}
                             })
                         _msgs_content.append({"type": "text", "text": _prompt_xeir})
 
