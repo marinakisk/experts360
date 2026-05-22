@@ -1259,7 +1259,7 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                             if _ants:
                                 st.session_state['num_parts'] = max(7, len(_ants))
                                 for idx_a, ant in enumerate(_ants):
-                                    perigrafi = ant.get('perigrafi','').strip()
+                                    perigrafi = str(ant.get('perigrafi','')).strip()
                                     timi = ant.get('timi','') or ant.get('ant_ko','') or ant.get('timi_synolo','') or ''
                                     if perigrafi:
                                         st.session_state[f'p_name_{idx_a}'] = perigrafi
@@ -1274,9 +1274,9 @@ with st.expander("✍️ Ανάγνωση χειρόγραφου ή τιμολο
                             if _ergs:
                                 st.session_state['num_works'] = max(5, len(_ergs))
                                 for idx_e, erg in enumerate(_ergs):
-                                    perigrafi_e = erg.get('perigrafi','').strip()
-                                    kostos_e = erg.get('kostos','').strip()
-                                    typos_e = erg.get('typos','ΕΠΙΣΚΕΥΗ').strip()
+                                    perigrafi_e = str(erg.get('perigrafi','')).strip()
+                                    kostos_e = str(erg.get('kostos','')).strip()
+                                    typos_e = str(erg.get('typos','ΕΠΙΣΚΕΥΗ')).strip()
                                     if perigrafi_e:
                                         st.session_state[f'w_desc_{idx_e}'] = perigrafi_e
                                         st.session_state[f'w_type_{idx_e}'] = typos_e
